@@ -1,3 +1,3 @@
-email: var-mak@mail.ru
-ФИО: Макагонова Варвара Дмитриевна
+email: var-mak@mail.ru <br>
+ФИО: Макагонова Варвара Дмитриевна <br>
 tg: @deelaym
