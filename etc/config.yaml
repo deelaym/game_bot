@@ -8,3 +8,17 @@ sentry:
   env: dev
 
 store: {}
+
+database:
+  host: localhost
+  port: 5432
+  user: tg_photo
+  password: tg_photo_pass
+  database: tg_photo_contest
+bot:
+  token: 7135032952:AAHUR-6bTRCBSit8AEaFxhZqihmCOmUZSac
+session:
+  key: M1nWYPt2oDbeJixQYqdgcTGepfoq9JoGeLwpvnh1Uf4=
+admin:
+  email: admin@admin.com
+  password: admin
