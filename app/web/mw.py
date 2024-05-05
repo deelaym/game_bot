@@ -19,17 +19,12 @@ async def error_handling_middleware(request: "Request", handler):
     except HTTPException as e:
         request.app.logger.error(e.reason, exc_info=e)
         return error_json_response(
-            http_status=e.status,
-            status=e.reason,
-            message=e.reason,
-            data=e.text
+            http_status=e.status, status=e.reason, message=e.reason, data=e.text
         )
     except Exception as e:
-        request.app.logger.error('Exception', exc_info=e)
+        request.app.logger.error("Exception", exc_info=e)
         return error_json_response(
-            http_status=500,
-            status=str(e),
-            message=str(e)
+            http_status=500, status=str(e), message=str(e)
         )
 
     return response

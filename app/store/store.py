@@ -1,11 +1,11 @@
 from app.store.database.database import Database
-from app.tg_bot.manager import BotManager
 
 
 class Store:
     def __init__(self, app, *args, **kwargs):
-        from app.users.accessor import UserAccessor
         from app.tg_bot.accessor import TgApiAccessor
+        from app.tg_bot.manager import BotManager
+        from app.users.accessor import UserAccessor
 
         self.user = UserAccessor(app)
         self.tg_bot = TgApiAccessor(app)

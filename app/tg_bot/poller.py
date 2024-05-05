@@ -1,6 +1,7 @@
 import asyncio
 from asyncio import Task
 
+
 class Poller:
     def __init__(self, store) -> None:
         self.store = store
@@ -24,4 +25,3 @@ class Poller:
     async def poll(self) -> None:
         while self.is_running:
             await self.store.tg_bot.poll()
-
