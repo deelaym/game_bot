@@ -28,7 +28,7 @@ class Database:
                 db_info.port,
                 db_info.database,
             ),
-            echo=True,
+            echo=self.app.config.echo,
         )
 
         self.session = async_sessionmaker(
@@ -39,7 +39,5 @@ class Database:
         )
 
     async def disconnect(self, *args, **kwargs) -> None:
-        try:
+        if self.engine:
             await self.engine.dispose()
-        except Exception:
-            pass

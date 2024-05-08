@@ -15,7 +15,7 @@ from app.store.database.sqlalchemy_base import BaseModel
 UserSession = Table(
     "user_session",
     BaseModel.metadata,
-    Column("id_", BigInteger, primary_key=True),
+    Column("id", BigInteger, primary_key=True),
     Column("user_id", BigInteger, ForeignKey("users.id_")),
     Column("session_id", BigInteger, ForeignKey("sessions.id_")),
     Column("points", Integer, default=0),
@@ -34,7 +34,7 @@ class UserModel(BaseModel):
         "SessionModel",
         secondary=UserSession,
         back_populates="users",
-        lazy="subquery",
+        lazy="joined",
     )
 
 
@@ -49,5 +49,5 @@ class SessionModel(BaseModel):
         "UserModel",
         secondary=UserSession,
         back_populates="sessions",
-        lazy="subquery",
+        lazy="joined",
     )

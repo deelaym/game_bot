@@ -3,6 +3,7 @@ import os
 from logging.config import fileConfig
 
 import yaml
+from dotenv import load_dotenv
 from sqlalchemy import pool, URL
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
@@ -14,14 +15,26 @@ from app.web.config import DatabaseConfig
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
+
+load_dotenv()
+
+raw_config = {'database': {
+    'host': os.getenv('DB_HOST'),
+    'port': os.getenv('DB_PORT'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD'),
+    'database': os.getenv('DB')
+}}
+
+if not raw_config['database']['host']:
+    config_path = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), '..', 'etc/config.yaml'
+    )
+    with open(config_path, 'r') as f:
+        raw_config = yaml.safe_load(f)
+
+
 config = context.config
-
-config_path = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), '..', 'etc/config.yaml'
-)
-with open(config_path, 'r') as f:
-    raw_config = yaml.safe_load(f)
-
 app_config = DatabaseConfig(**raw_config['database'])
 config.set_main_option(
     'sqlalchemy.url',

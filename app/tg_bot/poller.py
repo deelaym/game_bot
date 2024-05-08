@@ -1,14 +1,18 @@
 import asyncio
 from asyncio import Task
+from logging import getLogger
 
 
 class Poller:
     def __init__(self, store) -> None:
         self.store = store
+        self.logger = getLogger("poller")
         self.is_running = False
         self.poll_task: Task | None = None
 
     def _done_callback(self, result) -> None:
+        if result.exception():
+            self.logger.error(result.exception())
         if self.is_running:
             self.start()
 

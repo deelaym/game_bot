@@ -1,8 +1,8 @@
 """Added initial table
 
-Revision ID: 0294f864b518
+Revision ID: 4eb0da53d9bf
 Revises: 
-Create Date: 2024-05-06 00:10:16.743439
+Create Date: 2024-05-07 14:23:43.144140
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '0294f864b518'
+revision: str = '4eb0da53d9bf'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -34,14 +34,14 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id_')
     )
     op.create_table('user_session',
-    sa.Column('id_', sa.BigInteger(), nullable=False),
+    sa.Column('id', sa.BigInteger(), nullable=False),
     sa.Column('user_id', sa.BigInteger(), nullable=True),
     sa.Column('session_id', sa.BigInteger(), nullable=True),
     sa.Column('points', sa.Integer(), nullable=True),
     sa.Column('in_game', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['session_id'], ['sessions.id_'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id_'], ),
-    sa.PrimaryKeyConstraint('id_')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_index('user_id_session_id', 'user_session', ['user_id', 'session_id'], unique=True)
     # ### end Alembic commands ###

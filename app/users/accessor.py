@@ -23,21 +23,27 @@ class UserAccessor(BaseAccessor):
                 UserModel, update.callback_query.from_.id_
             )
             game_session = await session.get(
-                SessionModel, update.message.message_id
+                SessionModel,
+                update.message.message_id,
             )
+
             if existing_user:
-                existing_user.sessions.append(game_session)
+                game_session.users.append(existing_user)
             else:
                 user = UserModel(
                     id_=update.callback_query.from_.id_,
                     first_name=update.callback_query.from_.first_name,
                     username=update.callback_query.from_.username,
                 )
-                user.sessions.append(game_session)
+                game_session.users.append(user)
                 session.add(user)
+
             try:
                 await session.commit()
+                await self.app.store.tg_bot.notify_about_participation(
+                    update.callback_query
+                )
             except IntegrityError as e:
-                self.logger.error(str(e))
+                self.logger.error(e)
 
         return existing_user if existing_user else user

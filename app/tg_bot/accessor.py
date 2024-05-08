@@ -4,11 +4,11 @@ from aiohttp import ClientSession, TCPConnector
 
 from app.base.base_accessor import BaseAccessor
 from app.tg_bot.dataclasses import (
-    CallbackQueryObject,
-    Chat,
-    FromObject,
-    MessageObject,
     Update,
+)
+from app.tg_bot.parsing_update import (
+    get_callback_query_from_update,
+    get_message_from_update,
 )
 from app.tg_bot.poller import Poller
 
@@ -32,10 +32,10 @@ class TgApiAccessor(BaseAccessor):
         self.poller.start()
 
     async def disconnect(self, app) -> None:
-        if self.session:
-            await self.session.close()
         if self.poller:
             await self.poller.stop()
+        if self.session:
+            await self.session.close()
 
     @staticmethod
     def _build_query(host, token, method, params):
@@ -56,76 +56,15 @@ class TgApiAccessor(BaseAccessor):
             updates = []
             for update in data.get("result", []):
                 self.offset = update["update_id"]
-                if "message" in update:
-                    message = update["message"]
-                    from_ = message["from"]
-                    from_obj = FromObject(
-                        id_=from_["id"],
-                        is_bot=from_["is_bot"],
-                        first_name=from_["first_name"],
-                        username=from_.get("username", None),
-                    )
+                match update:
+                    case {"message": _}:
+                        update_obj = get_message_from_update(update)
+                    case {"callback_query": _}:
+                        update_obj = get_callback_query_from_update(update)
+                    case _:
+                        update_obj = Update(update_id=update["update_id"])
 
-                    chat = message["chat"]
-                    chat_obj = Chat(
-                        id_=chat["id"],
-                        type=chat["type"],
-                        title=chat.get("title", None),
-                        first_name=chat.get("first_name", None),
-                        username=chat.get("username", None),
-                    )
-
-                    date = message["date"]
-                    text = message.get("text", "")
-
-                    update = Update(
-                        update_id=update["update_id"],
-                        message=MessageObject(
-                            message_id=message["message_id"],
-                            from_=from_obj,
-                            chat=chat_obj,
-                            date=date,
-                            text=text,
-                        ),
-                    )
-
-                elif "callback_query" in update:
-                    from_ = update["callback_query"]["from"]
-                    from_obj = FromObject(
-                        id_=from_["id"],
-                        is_bot=from_["is_bot"],
-                        first_name=from_["first_name"],
-                        username=from_.get("username", None),
-                    )
-
-                    message = update["callback_query"]["message"]
-                    chat = message["chat"]
-                    chat_obj = Chat(
-                        id_=chat["id"],
-                        type=chat["type"],
-                        title=chat.get("title", None),
-                        first_name=chat.get("first_name", None),
-                        username=chat.get("username", None),
-                    )
-                    message_obj = MessageObject(
-                        message_id=message["message_id"],
-                        date=message["date"],
-                        chat=chat_obj,
-                    )
-
-                    callback_query = CallbackQueryObject(
-                        id_=update["callback_query"], from_=from_obj
-                    )
-
-                    update = Update(
-                        update_id=update["update_id"],
-                        message=message_obj,
-                        callback_query=callback_query,
-                    )
-                else:
-                    update = Update(update_id=update["update_id"])
-
-                updates.append(update)
+                updates.append(update_obj)
 
             await self.app.store.bot_manager.handle_updates(updates)
 
@@ -140,6 +79,21 @@ class TgApiAccessor(BaseAccessor):
                 "reply_markup": message.reply_markup,
             },
         )
+        async with self.session.get(url) as response:
+            data = await response.json()
+            self.logger.info(data)
+
+    async def notify_about_participation(self, callback_query) -> None:
+        url = self._build_query(
+            host=API_PATH,
+            token=self.app.config.bot.token,
+            method="answerCallbackQuery",
+            params={
+                "callback_query_id": callback_query.id_,
+                "text": "Вы участвуете в конкурсе!",
+            },
+        )
+
         async with self.session.get(url) as response:
             data = await response.json()
             self.logger.info(data)
