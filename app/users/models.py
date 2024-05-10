@@ -6,22 +6,24 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    Table,
 )
 from sqlalchemy.orm import relationship
 
 from app.store.database.sqlalchemy_base import BaseModel
 
-UserSession = Table(
-    "user_session",
-    BaseModel.metadata,
-    Column("id", BigInteger, primary_key=True),
-    Column("user_id", BigInteger, ForeignKey("users.id_")),
-    Column("session_id", BigInteger, ForeignKey("sessions.id_")),
-    Column("points", Integer, default=0),
-    Column("in_game", Boolean, default=True),
-    Index("user_id_session_id", "user_id", "session_id", unique=True),
-)
+
+class UserSession(BaseModel):
+    __tablename__ = "user_session"
+
+    id_ = Column(BigInteger, primary_key=True)
+    user_id = Column(BigInteger, ForeignKey("users.id_"))
+    session_id = Column(BigInteger, ForeignKey("sessions.id_"))
+    points = Column(Integer, default=0)
+    in_game = Column(Boolean, default=True)
+    file_id = Column(String)
+    __table_args__ = (
+        Index("user_id_session_id", "user_id", "session_id", unique=True),
+    )
 
 
 class UserModel(BaseModel):
@@ -32,9 +34,8 @@ class UserModel(BaseModel):
     username = Column(String)
     sessions = relationship(
         "SessionModel",
-        secondary=UserSession,
+        secondary="user_session",
         back_populates="users",
-        lazy="joined",
     )
 
 
@@ -47,7 +48,7 @@ class SessionModel(BaseModel):
     round_number = Column(Integer, default=1)
     users = relationship(
         "UserModel",
-        secondary=UserSession,
+        secondary="user_session",
         back_populates="sessions",
         lazy="joined",
     )

@@ -1,8 +1,8 @@
 """Added initial table
 
-Revision ID: 4eb0da53d9bf
+Revision ID: 6de6be000c0c
 Revises: 
-Create Date: 2024-05-07 14:23:43.144140
+Create Date: 2024-05-10 00:59:45.763464
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '4eb0da53d9bf'
+revision: str = '6de6be000c0c'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -34,14 +34,15 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id_')
     )
     op.create_table('user_session',
-    sa.Column('id', sa.BigInteger(), nullable=False),
+    sa.Column('id_', sa.BigInteger(), nullable=False),
     sa.Column('user_id', sa.BigInteger(), nullable=True),
     sa.Column('session_id', sa.BigInteger(), nullable=True),
     sa.Column('points', sa.Integer(), nullable=True),
     sa.Column('in_game', sa.Boolean(), nullable=True),
+    sa.Column('file_id', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['session_id'], ['sessions.id_'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id_'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id_')
     )
     op.create_index('user_id_session_id', 'user_session', ['user_id', 'session_id'], unique=True)
     # ### end Alembic commands ###
