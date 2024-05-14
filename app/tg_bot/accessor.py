@@ -1,4 +1,6 @@
 import asyncio
+import json
+from functools import partial
 from urllib.parse import urlencode
 
 from aiohttp import ClientSession, TCPConnector
@@ -6,13 +8,14 @@ from aiohttp import ClientSession, TCPConnector
 from app.base.base_accessor import BaseAccessor
 from app.tg_bot.dataclasses import (
     Message,
-    Update,
+    Update, MessageObject, Chat,
 )
 from app.tg_bot.parsing_update import (
     get_callback_query_from_update,
-    get_message_from_update,
+    get_message_from_update, get_poll_answer_from_update,
 )
 from app.tg_bot.poller import Poller
+from app.users.models import UserSession
 
 API_PATH = "https://api.telegram.org/bot"
 TIMEOUT = 60
@@ -25,7 +28,7 @@ class TgApiAccessor(BaseAccessor):
         self.session: ClientSession | None = None
         self.offset: int = -2
         self.poller: Poller | None = None
-        self.seconds: int = 60
+        self.seconds: int = 20
 
     async def connect(self, app) -> None:
         self.session = ClientSession(connector=TCPConnector(verify_ssl=False))
@@ -45,7 +48,7 @@ class TgApiAccessor(BaseAccessor):
         params.setdefault("timeout", TIMEOUT)
         return f"{host}{token}/{method}?{urlencode(params)}"
 
-    async def poll(self):
+    async def poll(self, flag=True):
         url = self._build_query(
             host=API_PATH,
             token=self.app.config.bot.token,
@@ -64,12 +67,20 @@ class TgApiAccessor(BaseAccessor):
                         update_obj = get_message_from_update(update)
                     case {"callback_query": _}:
                         update_obj = get_callback_query_from_update(update)
+                    case {"poll": _}:
+                        update_obj = get_poll_answer_from_update(update)
+                        flag = False
                     case _:
                         update_obj = Update(update_id=update["update_id"])
 
                 updates.append(update_obj)
+            if flag:
+                await self.app.store.bot_manager.handle_updates(updates)
+            return updates
 
-            await self.app.store.bot_manager.handle_updates(updates)
+    def _done_callback(self, result):
+        if result.exception():
+            self.logger.error(result.exception())
 
     async def send_start_button_message(self, message, update) -> None:
         send_url = self._build_query(
@@ -86,10 +97,12 @@ class TgApiAccessor(BaseAccessor):
             data = await response.json()
             self.logger.info(data)
 
-        asyncio.create_task(
+        delete_message_task = asyncio.create_task(
             self.delete_message(message.chat_id, data["result"]["message_id"])
         )
-        asyncio.create_task(self.check_users_in_session_enough(update))
+        check_users_task = asyncio.create_task(self.check_users_in_session_enough(update))
+        delete_message_task.add_done_callback(self._done_callback)
+        check_users_task.add_done_callback(self._done_callback)
 
     async def delete_message(self, chat_id, message_id) -> None:
         await asyncio.sleep(self.seconds)
@@ -120,6 +133,10 @@ class TgApiAccessor(BaseAccessor):
                 )
             )
             await self.app.store.user.stop_game_session(update)
+        else:
+            fsm = self.app.store.bot_manager.fsm
+            fsm.state = fsm.transitions[fsm.state]["next_state"]
+            await fsm.launch_func(fsm.state, update)
 
     async def send_message(self, message):
         send_url = self._build_query(
@@ -159,3 +176,67 @@ class TgApiAccessor(BaseAccessor):
         async with self.session.get(url) as response:
             data = await response.json()
             self.logger.info(data)
+
+    async def send_photo(self, user: UserSession, chat_id):
+        user_info = await self.app.store.user.get_user(user.user_id)
+        username = f"@{user_info.username}" if user_info.username else user_info.first_name
+
+        url = self._build_query(
+            host=API_PATH,
+            token=self.app.config.bot.token,
+            method="sendPhoto",
+            params={
+                "chat_id": chat_id,
+                "photo": user.file_id,
+                "caption": username
+            },
+        )
+
+        async with self.session.get(url) as response:
+            data = await response.json()
+            self.logger.info(data)
+
+    async def send_poll(self, chat_id, first_user, second_user):
+        usernames = []
+        for user in (first_user, second_user):
+            user_info = await self.app.store.user.get_user(user.user_id)
+            usernames.append(f"@{user_info.username}" if user_info.username else user_info.first_name)
+
+        url = self._build_query(
+            host=API_PATH,
+            token=self.app.config.bot.token,
+            method="sendPoll",
+            params={
+                "chat_id": chat_id,
+                "question": "Какое фото больше нравится?",
+                "options": json.dumps(usernames),
+                "open_period": self.seconds
+            },
+        )
+
+        async with self.session.get(url) as response:
+            data = await response.json()
+            self.logger.info(data)
+
+        await asyncio.sleep(self.seconds)
+        updates = await self.poll(False)
+        await self.get_poll_answers(first_user.id_, second_user.id_, updates[-1])
+
+    async def get_poll_answers(self, first_id, second_id, update):
+        self.logger.info(update)
+        first_user, second_user = update.poll.options
+
+        if first_user.voter_count > second_user.voter_count:
+            first_points = 1
+            second_points = 0
+        elif first_user.voter_count < second_user.voter_count:
+            first_points = 0
+            second_points = 1
+        else:
+            first_points = 1
+            second_points = 1
+
+        await self.app.store.user.set_points(first_id, second_id, first_points, second_points)
+
+        fsm = self.app.store.bot_manager.fsm
+        fsm.state = fsm.transitions[fsm.state]["next_state"]

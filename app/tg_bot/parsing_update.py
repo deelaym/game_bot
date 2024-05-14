@@ -3,7 +3,7 @@ from app.tg_bot.dataclasses import (
     Chat,
     FromObject,
     MessageObject,
-    Update,
+    Update, PollObject, Option,
 )
 
 
@@ -73,4 +73,28 @@ def get_callback_query_from_update(update) -> Update:
         update_id=update["update_id"],
         message=message_obj,
         callback_query=callback_query,
+    )
+
+
+def get_poll_answer_from_update(update) -> Update:
+    poll = update["poll"]
+    options = []
+    for option in poll["options"]:
+        options.append(
+            Option(
+                text=option["text"],
+                voter_count=option["voter_count"]
+            )
+        )
+
+    poll_obj = PollObject(
+        id_=poll["id"],
+        question=poll["question"],
+        options=options,
+        total_voter_count=poll["total_voter_count"]
+    )
+
+    return Update(
+        update_id=update["update_id"],
+        poll=poll_obj
     )

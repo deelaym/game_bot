@@ -7,9 +7,10 @@ class Store:
         from app.tg_bot.manager import BotManager
         from app.users.accessor import UserAccessor
 
+        self.bot_manager = BotManager(app)
         self.user = UserAccessor(app)
         self.tg_bot = TgApiAccessor(app)
-        self.bot_manager = BotManager(app)
+
 
 
 def setup_store(app):
