@@ -1,3 +1,4 @@
+from app.admin.accessor import AdminAccessor
 from app.store.database.database import Database
 
 
@@ -10,6 +11,7 @@ class Store:
         self.bot_manager = BotManager(app)
         self.user = UserAccessor(app)
         self.tg_bot = TgApiAccessor(app)
+        self.admin = AdminAccessor(app)
 
 
 def setup_store(app):

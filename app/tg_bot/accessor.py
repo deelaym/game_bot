@@ -151,12 +151,12 @@ class TgApiAccessor(BaseAccessor):
             data = await response.json()
             self.logger.info(data)
 
-    async def get_profile_photo(self, user_id) -> list:
+    async def get_profile_photo(self, user_id, limit=1) -> list:
         url = self._build_query(
             host=API_PATH,
             token=self.app.config.bot.token,
             method="getUserProfilePhotos",
-            params={"user_id": user_id, "limit": 1},
+            params={"user_id": user_id, "limit": limit},
         )
 
         async with self.session.get(url) as response:

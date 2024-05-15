@@ -58,6 +58,9 @@ def setup_config(app, config_path):
             "email": os.getenv("ADMIN_EMAIL"),
             "password": os.getenv("ADMIN_PASSWORD"),
         },
+        "session": {
+            "key": os.getenv("SESSION_KEY"),
+        },
     }
 
     if raw_config_env["bot"]["token"]:

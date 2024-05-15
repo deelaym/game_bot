@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
@@ -249,3 +249,51 @@ class UserAccessor(BaseAccessor):
                     .order_by(SessionModel.id_.desc())
                 )
             ).first()
+
+    async def create_user(self, id_, first_name, username):
+        user = UserModel(id_=id_, first_name=first_name, username=username)
+
+        async with self.app.database.session() as session:
+            session.add(user)
+            await session.commit()
+        return user
+
+    async def get_game_session_by_id(self, session_id):
+        async with self.app.database.session() as session:
+            return (
+                await session.execute(
+                    select(SessionModel)
+                    .where(SessionModel.id_ == session_id)
+                    .options(joinedload(SessionModel.users))
+                )
+            ).scalar()
+
+    async def add_user_to_session_manual(self, user, game_session):
+        async with self.app.database.session() as session:
+            game_session.users.append(user)
+            session.add(game_session)
+            await session.commit()
+
+    async def add_user_photo(self, user_id, session_id, photo):
+        async with self.app.database.session() as session:
+            user_session = (
+                await session.execute(
+                    select(UserSession).where(
+                        UserSession.user_id == user_id,
+                        UserSession.session_id == session_id,
+                    )
+                )
+            ).scalar()
+            user_session.file_id = photo
+            await session.commit()
+            return user_session
+
+    async def delete_user_from_session(self, user_id, session_id):
+        async with self.app.database.session() as session:
+            await session.execute(
+                delete(UserSession).where(
+                    UserSession.user_id == user_id,
+                    UserSession.session_id == session_id,
+                )
+            )
+            await session.commit()
