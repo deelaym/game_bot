@@ -1,10 +1,13 @@
 from sqlalchemy import URL
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 
-
-class BaseModel(DeclarativeBase):
-    pass
+from app.store.database.sqlalchemy_base import BaseModel
 
 
 class Database:
@@ -16,14 +19,17 @@ class Database:
 
     async def connect(self, *args, **kwargs) -> None:
         db_info = self.app.config.database
-        self.engine = create_async_engine(URL.create(
-            'postgresql+asyncpg',
-            db_info.user,
-            db_info.password,
-            db_info.host,
-            db_info.port,
-            db_info.database
-        ), echo=True)
+        self.engine = create_async_engine(
+            URL.create(
+                "postgresql+asyncpg",
+                db_info.user,
+                db_info.password,
+                db_info.host,
+                db_info.port,
+                db_info.database,
+            ),
+            echo=self.app.config.echo,
+        )
 
         self.session = async_sessionmaker(
             self.engine,
@@ -33,7 +39,5 @@ class Database:
         )
 
     async def disconnect(self, *args, **kwargs) -> None:
-        try:
+        if self.engine:
             await self.engine.dispose()
-        except Exception:
-            pass
