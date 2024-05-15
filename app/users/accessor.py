@@ -1,4 +1,4 @@
-from sqlalchemy import func, select, or_
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
@@ -129,8 +129,14 @@ class UserAccessor(BaseAccessor):
             self.logger.info(users_amount)
             return users_amount
 
-    async def get_winners(self, update, session_id) -> None:
+    async def get_winners(self, update, session_id=None) -> None:
         async with self.app.database.session() as session:
+            if session_id is None:
+                game_session = await self.get_game_session(
+                    update.message.chat.id_
+                )
+                session_id = game_session.id_
+
             users_in_session = (
                 await session.scalars(
                     select(UserSession)
@@ -151,7 +157,10 @@ class UserAccessor(BaseAccessor):
                     if user_profile.username
                     else user_profile.first_name
                 )
-                text = f"Победитель: {username}"
+                if self.app.store.bot_manager.fsm.state == "about":
+                    text = f"Победитель прошлого конкурса: {username}"
+                else:
+                    text = f"Победитель: {username}"
             else:
                 text = f"Топ-{len(users_in_session)}:"
                 for i, user in enumerate(users_in_session, start=1):
@@ -168,28 +177,36 @@ class UserAccessor(BaseAccessor):
             )
 
             if len(users_in_session) == 1:
-                await self.app.store.tg_bot.send_photo(users_in_session[0], update.message.chat.id_)
+                await self.app.store.tg_bot.send_photo(
+                    users_in_session[0], update.message.chat.id_
+                )
 
     async def get_all_in_game_users(self, chat_id):
         async with self.app.database.session() as session:
             game_session = await self.get_game_session(chat_id)
-            users_in_game = (await session.scalars(select(UserSession).where(UserSession.session_id == game_session.id_, UserSession.in_game, UserSession.points == game_session.round_number - 1))).all()
-            return users_in_game
+            return (
+                await session.scalars(
+                    select(UserSession).where(
+                        UserSession.session_id == game_session.id_,
+                        UserSession.in_game,
+                        UserSession.points == game_session.round_number - 1,
+                    )
+                )
+            ).all()
 
     async def set_round_number(self, chat_id):
         async with self.app.database.session() as session:
             game_session = await self.get_game_session(chat_id)
             game_session.round_number += 1
+            session.add(game_session)
             await session.commit()
             return game_session
 
     async def set_points(self, first_id, second_id, *points):
         async with self.app.database.session() as session:
-            for id_, point in zip([first_id, second_id], points):
+            for id_, point in zip([first_id, second_id], points, strict=True):
                 user_session = await session.get(UserSession, id_)
                 user_session.points += point
-                self.logger.info(user_session.points)
-            self.logger.info((first_id, second_id))
             await session.commit()
 
     async def get_winner_in_pair(self, first_user, second_user):
@@ -201,16 +218,23 @@ class UserAccessor(BaseAccessor):
 
             self.logger.info(first_user_info)
 
-
             if first_user.points > second_user.points:
                 second_user.in_game = False
                 await session.commit()
-                return f"@{first_user_info.username}" if first_user_info.username else first_user_info.first_name
-            elif first_user.points < second_user.points:
+                return (
+                    f"@{first_user_info.username}"
+                    if first_user_info.username
+                    else first_user_info.first_name
+                )
+            if first_user.points < second_user.points:
                 first_user.in_game = False
                 await session.commit()
-                return f"@{second_user_info.username}" if second_user_info.username else second_user_info.first_name
-
+                return (
+                    f"@{second_user_info.username}"
+                    if second_user_info.username
+                    else second_user_info.first_name
+                )
+            return None
 
     async def get_user(self, user_id):
         async with self.app.database.session() as session:
@@ -218,5 +242,10 @@ class UserAccessor(BaseAccessor):
 
     async def get_game_session(self, chat_id):
         async with self.app.database.session() as session:
-            return (await session.scalars(select(SessionModel).where(SessionModel.chat_id == chat_id).order_by(SessionModel.id_.desc()))).first()
-
+            return (
+                await session.scalars(
+                    select(SessionModel)
+                    .where(SessionModel.chat_id == chat_id)
+                    .order_by(SessionModel.id_.desc())
+                )
+            ).first()

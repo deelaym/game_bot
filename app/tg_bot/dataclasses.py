@@ -32,17 +32,19 @@ class CallbackQueryObject:
     id_: int
     from_: FromObject
 
+
 @dataclass
 class Option:
-    text: str
-    voter_count: int
+    text: str | None = None
+    voter_count: int | None = None
+
 
 @dataclass
 class PollObject:
-    id_: int
-    question: str
-    options: list[Option]
-    total_voter_count: int
+    id_: int | None = None
+    question: str | None = None
+    options: list[Option] | None = None
+    total_voter_count: int | None = None
 
 
 @dataclass
@@ -62,5 +64,3 @@ class Message:
 @dataclass
 class ButtonMessage(Message):
     reply_markup: str = ""
-
-

@@ -1,6 +1,5 @@
 import asyncio
 import json
-from functools import partial
 from urllib.parse import urlencode
 
 from aiohttp import ClientSession, TCPConnector
@@ -8,11 +7,12 @@ from aiohttp import ClientSession, TCPConnector
 from app.base.base_accessor import BaseAccessor
 from app.tg_bot.dataclasses import (
     Message,
-    Update, MessageObject, Chat,
+    Update,
 )
 from app.tg_bot.parsing_update import (
     get_callback_query_from_update,
-    get_message_from_update, get_poll_answer_from_update,
+    get_message_from_update,
+    get_poll_answer_from_update,
 )
 from app.tg_bot.poller import Poller
 from app.users.models import UserSession
@@ -28,7 +28,7 @@ class TgApiAccessor(BaseAccessor):
         self.session: ClientSession | None = None
         self.offset: int = -2
         self.poller: Poller | None = None
-        self.seconds: int = 20
+        self.seconds: int = 10
 
     async def connect(self, app) -> None:
         self.session = ClientSession(connector=TCPConnector(verify_ssl=False))
@@ -48,7 +48,7 @@ class TgApiAccessor(BaseAccessor):
         params.setdefault("timeout", TIMEOUT)
         return f"{host}{token}/{method}?{urlencode(params)}"
 
-    async def poll(self, flag=True):
+    async def poll(self):
         url = self._build_query(
             host=API_PATH,
             token=self.app.config.bot.token,
@@ -58,10 +58,10 @@ class TgApiAccessor(BaseAccessor):
         async with self.session.get(url) as response:
             data = await response.json()
             self.logger.info(data)
-
             updates = []
             for update in data.get("result", []):
                 self.offset = update["update_id"]
+                flag = True
                 match update:
                     case {"message": _}:
                         update_obj = get_message_from_update(update)
@@ -72,10 +72,10 @@ class TgApiAccessor(BaseAccessor):
                         flag = False
                     case _:
                         update_obj = Update(update_id=update["update_id"])
+                if flag:
+                    updates.append(update_obj)
 
-                updates.append(update_obj)
-            if flag:
-                await self.app.store.bot_manager.handle_updates(updates)
+            await self.app.store.bot_manager.handle_updates(updates)
             return updates
 
     def _done_callback(self, result):
@@ -100,7 +100,9 @@ class TgApiAccessor(BaseAccessor):
         delete_message_task = asyncio.create_task(
             self.delete_message(message.chat_id, data["result"]["message_id"])
         )
-        check_users_task = asyncio.create_task(self.check_users_in_session_enough(update))
+        check_users_task = asyncio.create_task(
+            self.check_users_in_session_enough(update)
+        )
         delete_message_task.add_done_callback(self._done_callback)
         check_users_task.add_done_callback(self._done_callback)
 
@@ -179,7 +181,11 @@ class TgApiAccessor(BaseAccessor):
 
     async def send_photo(self, user: UserSession, chat_id):
         user_info = await self.app.store.user.get_user(user.user_id)
-        username = f"@{user_info.username}" if user_info.username else user_info.first_name
+        username = (
+            f"@{user_info.username}"
+            if user_info.username
+            else user_info.first_name
+        )
 
         url = self._build_query(
             host=API_PATH,
@@ -188,7 +194,7 @@ class TgApiAccessor(BaseAccessor):
             params={
                 "chat_id": chat_id,
                 "photo": user.file_id,
-                "caption": username
+                "caption": username,
             },
         )
 
@@ -196,31 +202,53 @@ class TgApiAccessor(BaseAccessor):
             data = await response.json()
             self.logger.info(data)
 
-    async def send_poll(self, chat_id, first_user, second_user):
+    async def send_poll(self, update, first_user, second_user):
         usernames = []
         for user in (first_user, second_user):
             user_info = await self.app.store.user.get_user(user.user_id)
-            usernames.append(f"@{user_info.username}" if user_info.username else user_info.first_name)
+            usernames.append(
+                f"@{user_info.username}"
+                if user_info.username
+                else user_info.first_name
+            )
 
         url = self._build_query(
             host=API_PATH,
             token=self.app.config.bot.token,
             method="sendPoll",
             params={
-                "chat_id": chat_id,
+                "chat_id": update.message.chat.id_,
                 "question": "Какое фото больше нравится?",
                 "options": json.dumps(usernames),
-                "open_period": self.seconds
             },
         )
 
         async with self.session.get(url) as response:
-            data = await response.json()
-            self.logger.info(data)
+            poll = await response.json()
+            self.logger.info(poll)
 
         await asyncio.sleep(self.seconds)
-        updates = await self.poll(False)
-        await self.get_poll_answers(first_user.id_, second_user.id_, updates[-1])
+
+        poll_answer = await self.stop_poll(update, poll["result"]["message_id"])
+        poll_answer["poll"] = poll_answer["result"]
+        update = get_poll_answer_from_update(poll_answer)
+        await self.get_poll_answers(first_user.id_, second_user.id_, update)
+
+    async def stop_poll(self, update, message_id):
+        url = self._build_query(
+            host=API_PATH,
+            token=self.app.config.bot.token,
+            method="stopPoll",
+            params={
+                "chat_id": update.message.chat.id_,
+                "message_id": message_id,
+            },
+        )
+
+        async with self.session.get(url) as response:
+            poll = await response.json()
+            self.logger.info(poll)
+            return poll
 
     async def get_poll_answers(self, first_id, second_id, update):
         self.logger.info(update)
@@ -236,7 +264,6 @@ class TgApiAccessor(BaseAccessor):
             first_points = 1
             second_points = 1
 
-        await self.app.store.user.set_points(first_id, second_id, first_points, second_points)
-
-        fsm = self.app.store.bot_manager.fsm
-        fsm.state = fsm.transitions[fsm.state]["next_state"]
+        await self.app.store.user.set_points(
+            first_id, second_id, first_points, second_points
+        )

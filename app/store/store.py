@@ -12,7 +12,6 @@ class Store:
         self.tg_bot = TgApiAccessor(app)
 
 
-
 def setup_store(app):
     app.database = Database(app)
     app.on_startup.append(app.database.connect)
