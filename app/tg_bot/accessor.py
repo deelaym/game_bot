@@ -16,6 +16,7 @@ from app.tg_bot.parsing_update import (
 )
 from app.tg_bot.poller import Poller
 from app.users.models import UserSession
+from app.web.tasks_creator import create_delayed_task
 
 API_PATH = "https://api.telegram.org/bot"
 TIMEOUT = 60
@@ -57,7 +58,9 @@ class TgApiAccessor(BaseAccessor):
         )
         async with self.session.get(url) as response:
             data = await response.json()
-            self.logger.info(data)
+
+            self.logger.debug(f"update response: {data}")
+
             updates = []
             for update in data.get("result", []):
                 self.offset = update["update_id"]
@@ -72,15 +75,14 @@ class TgApiAccessor(BaseAccessor):
                         flag = False
                     case _:
                         update_obj = Update(update_id=update["update_id"])
+
+                self.logger.info(update_obj)
+
                 if flag:
                     updates.append(update_obj)
 
             await self.app.store.bot_manager.handle_updates(updates)
             return updates
-
-    def _done_callback(self, result):
-        if result.exception():
-            self.logger.error(result.exception())
 
     async def send_start_button_message(self, message, update) -> None:
         send_url = self._build_query(
@@ -95,20 +97,24 @@ class TgApiAccessor(BaseAccessor):
         )
         async with self.session.get(send_url) as response:
             data = await response.json()
-            self.logger.info(data)
 
-        delete_message_task = asyncio.create_task(
-            self.delete_message(message.chat_id, data["result"]["message_id"])
+        self.logger.debug(f"button response: {data}")
+        if not data["ok"]:
+            await asyncio.sleep(data["parameters"]["retry_after"])
+            await self.send_start_button_message(message, update)
+        return data
+
+
+    async def finish_registration(self, update, message_id):
+        delete_message_task = create_delayed_task(  # noqa: F841
+            self.delete_message(update.message.chat.id_, message_id),
+            delay=self.seconds,
         )
-        check_users_task = asyncio.create_task(
-            self.check_users_in_session_enough(update)
+        check_users_task = create_delayed_task(  # noqa: F841
+            self.check_users_in_session_enough(update), delay=self.seconds
         )
-        delete_message_task.add_done_callback(self._done_callback)
-        check_users_task.add_done_callback(self._done_callback)
 
     async def delete_message(self, chat_id, message_id) -> None:
-        await asyncio.sleep(self.seconds)
-
         delete_url = self._build_query(
             host=API_PATH,
             token=self.app.config.bot.token,
@@ -116,12 +122,15 @@ class TgApiAccessor(BaseAccessor):
             params={"chat_id": chat_id, "message_id": message_id},
         )
         async with self.session.get(delete_url) as response:
-            delete_data = await response.json()
-            self.logger.info(delete_data)
+            data = await response.json()
+
+        self.logger.debug(f"delete message response: {data}")
+        if not data["ok"]:
+            await asyncio.sleep(data["parameters"]["retry_after"])
+            await self.delete_message(chat_id, message_id)
+        return data
 
     async def check_users_in_session_enough(self, update):
-        await asyncio.sleep(self.seconds)
-
         number_of_users = (
             await self.app.store.user.get_amount_of_users_in_session(
                 update.message.chat.id_
@@ -136,9 +145,14 @@ class TgApiAccessor(BaseAccessor):
             )
             await self.app.store.user.stop_game_session(update)
         else:
-            fsm = self.app.store.bot_manager.fsm
-            fsm.state = fsm.transitions[fsm.state]["next_state"]
-            await fsm.launch_func(fsm.state, update)
+            self.app.store.fsm.state = await self.app.store.user.set_state(
+                update.message.chat.id_, self.app.store.fsm.transitions[
+                    await self.app.store.user.get_state(update.message.chat.id_)
+                ]["next_state"]
+            )
+            await self.app.store.fsm.launch_func(
+                self.app.store.fsm.state, update
+            )
 
     async def send_message(self, message):
         send_url = self._build_query(
@@ -149,7 +163,12 @@ class TgApiAccessor(BaseAccessor):
         )
         async with self.session.get(send_url) as response:
             data = await response.json()
-            self.logger.info(data)
+
+        self.logger.debug(f"message response: {data}")
+        if not data["ok"]:
+            await asyncio.sleep(data["parameters"]["retry_after"])
+            await self.send_message(message)
+        return data
 
     async def get_profile_photo(self, user_id) -> list:
         url = self._build_query(
@@ -161,7 +180,6 @@ class TgApiAccessor(BaseAccessor):
 
         async with self.session.get(url) as response:
             data = await response.json()
-            self.logger.info(data)
             return data["result"]["photos"]
 
     async def notify_about_participation(self, callback_query, message) -> None:
@@ -176,16 +194,11 @@ class TgApiAccessor(BaseAccessor):
         )
 
         async with self.session.get(url) as response:
-            data = await response.json()
-            self.logger.info(data)
+            return await response.json()
 
     async def send_photo(self, user: UserSession, chat_id):
         user_info = await self.app.store.user.get_user(user.user_id)
-        username = (
-            f"@{user_info.username}"
-            if user_info.username
-            else user_info.first_name
-        )
+        username = user_info.display_name
 
         url = self._build_query(
             host=API_PATH,
@@ -200,17 +213,18 @@ class TgApiAccessor(BaseAccessor):
 
         async with self.session.get(url) as response:
             data = await response.json()
-            self.logger.info(data)
+
+        self.logger.debug(f"photo response: {data}")
+        if not data["ok"]:
+            await asyncio.sleep(data["parameters"]["retry_after"])
+            await self.send_photo(user, chat_id)
+        return data
 
     async def send_poll(self, update, first_user, second_user):
         usernames = []
         for user in (first_user, second_user):
             user_info = await self.app.store.user.get_user(user.user_id)
-            usernames.append(
-                f"@{user_info.username}"
-                if user_info.username
-                else user_info.first_name
-            )
+            usernames.append(user_info.display_name)
 
         url = self._build_query(
             host=API_PATH,
@@ -225,7 +239,12 @@ class TgApiAccessor(BaseAccessor):
 
         async with self.session.get(url) as response:
             poll = await response.json()
-            self.logger.info(poll)
+
+        self.logger.debug(f"poll answers response: {poll}")
+
+        if not poll["ok"]:
+            await asyncio.sleep(poll["parameters"]["retry_after"])
+            await self.send_poll(update, first_user, second_user)
 
         await asyncio.sleep(self.seconds)
 
@@ -247,11 +266,16 @@ class TgApiAccessor(BaseAccessor):
 
         async with self.session.get(url) as response:
             poll = await response.json()
-            self.logger.info(poll)
-            return poll
+
+        self.logger.debug(f"poll stop answers response: {poll}")
+
+        if not poll["ok"]:
+            await asyncio.sleep(poll["parameters"]["retry_after"])
+            await self.send_poll(update,  message_id)
+        return poll
 
     async def get_poll_answers(self, first_id, second_id, update):
-        self.logger.info(update)
+        self.logger.info(f"poll answers update: {update}")
         first_user, second_user = update.poll.options
 
         if first_user.voter_count > second_user.voter_count:

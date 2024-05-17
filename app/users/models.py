@@ -38,6 +38,10 @@ class UserModel(BaseModel):
         back_populates="users",
     )
 
+    @property
+    def display_name(self) -> str:
+        return f"@{self.username}" if self.username else self.first_name
+
 
 class SessionModel(BaseModel):
     __tablename__ = "sessions"
@@ -46,6 +50,8 @@ class SessionModel(BaseModel):
     chat_id = Column(BigInteger, nullable=False)
     in_progress = Column(Boolean, default=True)
     round_number = Column(Integer, default=1)
+    state = Column(String, default="start")
+    message_id = Column(BigInteger)
     users = relationship(
         "UserModel",
         secondary="user_session",
