@@ -10,9 +10,11 @@ class AdminAccessor(BaseAccessor):
     async def connect(self, app) -> None:
         self.app = app
         self.logger.info("connect to database")
-        # first_admin = self.app.config.admin
-        # await self.create_admin(email=first_admin.email,
-        # password=first_admin.password)
+        if not await self.get_by_email(self.app.config.admin.email):
+            await self.create_admin(
+                email=self.app.config.admin.email,
+                password=self.app.config.admin.password,
+            )
 
     async def login_admin(self, email: str, password: str) -> AdminModel:
         admin = await self.get_by_email(email)
