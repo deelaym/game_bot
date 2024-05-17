@@ -59,7 +59,7 @@ class TgApiAccessor(BaseAccessor):
         async with self.session.get(url) as response:
             data = await response.json()
 
-            self.logger.debug(f"update response: {data}")
+            self.logger.debug("update response: %s", data)
 
             updates = []
             for update in data.get("result", []):
@@ -98,12 +98,11 @@ class TgApiAccessor(BaseAccessor):
         async with self.session.get(send_url) as response:
             data = await response.json()
 
-        self.logger.debug(f"button response: {data}")
+        self.logger.debug("button response: %s", data)
         if not data["ok"]:
             await asyncio.sleep(data["parameters"]["retry_after"])
             await self.send_start_button_message(message, update)
         return data
-
 
     async def finish_registration(self, update, message_id):
         delete_message_task = create_delayed_task(  # noqa: F841
@@ -124,7 +123,7 @@ class TgApiAccessor(BaseAccessor):
         async with self.session.get(delete_url) as response:
             data = await response.json()
 
-        self.logger.debug(f"delete message response: {data}")
+        self.logger.debug("delete message response: %s", data)
         if not data["ok"]:
             await asyncio.sleep(data["parameters"]["retry_after"])
             await self.delete_message(chat_id, message_id)
@@ -146,9 +145,10 @@ class TgApiAccessor(BaseAccessor):
             await self.app.store.user.stop_game_session(update)
         else:
             self.app.store.fsm.state = await self.app.store.user.set_state(
-                update.message.chat.id_, self.app.store.fsm.transitions[
+                update.message.chat.id_,
+                self.app.store.fsm.transitions[
                     await self.app.store.user.get_state(update.message.chat.id_)
-                ]["next_state"]
+                ]["next_state"],
             )
             await self.app.store.fsm.launch_func(
                 self.app.store.fsm.state, update
@@ -164,7 +164,7 @@ class TgApiAccessor(BaseAccessor):
         async with self.session.get(send_url) as response:
             data = await response.json()
 
-        self.logger.debug(f"message response: {data}")
+        self.logger.debug("message response: %s", data)
         if not data["ok"]:
             await asyncio.sleep(data["parameters"]["retry_after"])
             await self.send_message(message)
@@ -214,7 +214,7 @@ class TgApiAccessor(BaseAccessor):
         async with self.session.get(url) as response:
             data = await response.json()
 
-        self.logger.debug(f"photo response: {data}")
+        self.logger.debug("photo response: %s", data)
         if not data["ok"]:
             await asyncio.sleep(data["parameters"]["retry_after"])
             await self.send_photo(user, chat_id)
@@ -240,7 +240,7 @@ class TgApiAccessor(BaseAccessor):
         async with self.session.get(url) as response:
             poll = await response.json()
 
-        self.logger.debug(f"poll answers response: {poll}")
+        self.logger.debug("poll answers response: %s", poll)
 
         if not poll["ok"]:
             await asyncio.sleep(poll["parameters"]["retry_after"])
@@ -267,15 +267,15 @@ class TgApiAccessor(BaseAccessor):
         async with self.session.get(url) as response:
             poll = await response.json()
 
-        self.logger.debug(f"poll stop answers response: {poll}")
+        self.logger.debug("poll stop answers response: %s", poll)
 
         if not poll["ok"]:
             await asyncio.sleep(poll["parameters"]["retry_after"])
-            await self.send_poll(update,  message_id)
+            await self.stop_poll(update, message_id)
         return poll
 
     async def get_poll_answers(self, first_id, second_id, update):
-        self.logger.info(f"poll answers update: {update}")
+        self.logger.info("poll answers update: %s", update)
         first_user, second_user = update.poll.options
 
         if first_user.voter_count > second_user.voter_count:

@@ -129,9 +129,8 @@ class UserAccessor(BaseAccessor):
                 await self.get_state(update.message.chat.id_)
             ]["next_state"]
             self.app.store.fsm.state = await self.app.store.user.set_state(
-                update.message.chat.id_, self.app.store.fsm.transitions[
-                    "stop"
-                ]["next_state"]
+                update.message.chat.id_,
+                self.app.store.fsm.transitions["stop"]["next_state"],
             )
 
     async def get_amount_of_users_in_session(self, chat_id) -> int:
@@ -143,7 +142,9 @@ class UserAccessor(BaseAccessor):
                     UserSession.session_id == current_game_session.id_
                 )
             )
-            self.logger.debug(f"Users amount in in_progress session: {users_amount}")
+            self.logger.debug(
+                "Users amount in in_progress session: %s", users_amount
+            )
             return users_amount
 
     async def get_winners(self, update, game_session=None) -> None:
@@ -157,9 +158,7 @@ class UserAccessor(BaseAccessor):
                 users_in_session = (
                     await session.scalars(
                         select(UserSession)
-                        .where(
-                            UserSession.session_id == game_session.id_
-                        )
+                        .where(UserSession.session_id == game_session.id_)
                         .order_by(UserSession.points.desc())
                         .limit(3)
                     )
@@ -167,14 +166,14 @@ class UserAccessor(BaseAccessor):
             else:
                 users_in_session = (
                     await session.scalars(
-                        select(UserSession)
-                        .where(
-                            UserSession.session_id == game_session.id_, UserSession.in_game
+                        select(UserSession).where(
+                            UserSession.session_id == game_session.id_,
+                            UserSession.in_game,
                         )
                     )
                 ).all()
 
-            self.logger.debug(f"top users in session: {users_in_session}")
+            self.logger.debug("top users in session: %s", users_in_session)
 
             if len(users_in_session) == 1:
                 user_profile = await self.get_user(users_in_session[0].user_id)
@@ -238,7 +237,10 @@ class UserAccessor(BaseAccessor):
                 user_session.points += point
                 session.add(user_session)
 
-                self.logger.debug(f"user: {user_session.user_id} points: {user_session.points}")
+                self.logger.debug(
+                    "user: %s points: %s", user_session.user_id,
+                    user_session.points
+                )
 
             await session.commit()
 

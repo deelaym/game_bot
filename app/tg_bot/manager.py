@@ -11,7 +11,7 @@ class BotManager:
         self.logger = getLogger("handler")
 
     async def handle_updates(self, updates: list[Update]):
-        self.logger.info(f"state: {self.app.store.fsm.state}")
+        self.logger.info("state: %s", self.app.store.fsm.state)
 
         for update in updates:
             if update.message and update.message.text:
@@ -54,9 +54,10 @@ class BotManager:
             )
 
             self.app.store.fsm.state = await self.app.store.user.set_state(
-                update.message.chat.id_, self.app.store.fsm.transitions[
+                update.message.chat.id_,
+                self.app.store.fsm.transitions[
                     await self.app.store.user.get_state(update.message.chat.id_)
-                ]["next_state"]
+                ]["next_state"],
             )
         else:
             await self.app.store.tg_bot.send_message(
@@ -108,13 +109,15 @@ class BotManager:
                 winner = await self.app.store.user.get_winner_in_pair(
                     first_user
                 )
-                await self.app.store.tg_bot.send_photo(first_user, update.message.chat.id_)
+                await self.app.store.tg_bot.send_photo(
+                    first_user, update.message.chat.id_
+                )
                 await self.app.store.user.set_points(first_user.id_, None, 1)
 
                 await self.app.store.tg_bot.send_message(
                     Message(
                         chat_id=update.message.chat.id_,
-                        text=f"{winner} проходит в следующий раунд! "
+                        text=f"{winner} проходит в следующий раунд! ",
                     )
                 )
 
@@ -130,9 +133,12 @@ class BotManager:
                 )
             case 1 | 0:
                 self.app.store.fsm.state = await self.app.store.user.set_state(
-                    update.message.chat.id_, self.app.store.fsm.transitions[
-                        await self.app.store.user.get_state(update.message.chat.id_)
-                    ]["next_state"]
+                    update.message.chat.id_,
+                    self.app.store.fsm.transitions[
+                        await self.app.store.user.get_state(
+                            update.message.chat.id_
+                        )
+                    ]["next_state"],
                 )
                 await self.app.store.fsm.launch_func(
                     self.app.store.fsm.state, update
@@ -155,11 +161,11 @@ class BotManager:
             second_user, update.message.chat.id_
         )
 
-        self.logger.debug(f"poll sending")
+        self.logger.debug("poll sending")
 
         await self.app.store.tg_bot.send_poll(update, first_user, second_user)
 
-        self.logger.debug(f"poll sent")
+        self.logger.debug("poll sent")
 
         if await self.is_game_stop(update):
             return
