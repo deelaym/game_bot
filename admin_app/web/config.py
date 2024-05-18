@@ -17,14 +17,21 @@ class DatabaseConfig:
 
 
 @dataclass
-class BotConfig:
-    token: str
+class AdminConfig:
+    email: str
+    password: str
+
+
+@dataclass
+class SessionConfig:
+    key: str
 
 
 @dataclass
 class Config:
+    admin: AdminConfig
     echo: bool = True
-    bot: BotConfig | None = None
+    session: SessionConfig | None = None
     database: DatabaseConfig | None = None
 
 
@@ -41,14 +48,25 @@ def setup_config(app, config_path):
             "database": os.getenv("DB"),
         },
         "bot": {"token": os.getenv("BOT_TOKEN")},
+        "admin": {
+            "email": os.getenv("ADMIN_EMAIL"),
+            "password": os.getenv("ADMIN_PASSWORD"),
+        },
+        "session": {
+            "key": os.getenv("SESSION_KEY"),
+        },
     }
 
     if raw_config_env["bot"]["token"]:
         raw_config.update(raw_config_env)
 
     app.config = Config(
-        bot=BotConfig(
-            token=raw_config["bot"]["token"],
+        session=SessionConfig(
+            key=raw_config["session"]["key"],
+        ),
+        admin=AdminConfig(
+            email=raw_config["admin"]["email"],
+            password=raw_config["admin"]["password"],
         ),
         database=DatabaseConfig(**raw_config["database"]),
         echo=raw_config["debug"]["echo"],

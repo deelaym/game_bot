@@ -29,7 +29,7 @@ class TgApiAccessor(BaseAccessor):
         self.session: ClientSession | None = None
         self.offset: int = -2
         self.poller: Poller | None = None
-        self.seconds: int = 10
+        self.seconds: int = 60
 
     async def connect(self, app) -> None:
         self.session = ClientSession(connector=TCPConnector(verify_ssl=False))
@@ -246,6 +246,12 @@ class TgApiAccessor(BaseAccessor):
             await asyncio.sleep(poll["parameters"]["retry_after"])
             await self.send_poll(update, first_user, second_user)
 
+        seconds = await self.app.store.user.get_seconds(
+            poll["result"]["chat"]["id"]
+        )
+        if seconds > 5:
+            self.seconds = seconds
+
         await asyncio.sleep(self.seconds)
 
         if await self.app.store.bot_manager.is_game_stop(update):
@@ -294,6 +300,3 @@ class TgApiAccessor(BaseAccessor):
         await self.app.store.user.set_points(
             first_id, second_id, first_points, second_points
         )
-
-    def set_seconds(self, seconds):
-        self.seconds = seconds

@@ -1,12 +1,16 @@
 from aiohttp_apispec import docs, request_schema, response_schema
 from sqlalchemy.exc import IntegrityError
 
-from app.tg_bot.dataclasses import Chat, MessageObject, Update
-from app.users.schema import SessionSchema, StatisticsSchema, UserSessionSchema
-from app.web.app import View
-from app.web.mw import require_login
-from app.web.schemes import OkResponseSchema
-from app.web.utils import json_response
+from admin_app.tg_bot.dataclasses import Chat, MessageObject, Update
+from admin_app.users.schema import (
+    SessionSchema,
+    StatisticsSchema,
+    UserSessionSchema,
+)
+from admin_app.web.admin_app import View
+from admin_app.web.mw import require_login
+from admin_app.web.schemes import OkResponseSchema
+from admin_app.web.utils import json_response
 
 
 @require_login

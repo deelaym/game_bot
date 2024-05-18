@@ -1,10 +1,10 @@
 import aiohttp_session
 from aiohttp_apispec import docs, request_schema, response_schema
 
-from app.admin.schemes import AdminSchema
-from app.web.app import View
-from app.web.mw import require_login
-from app.web.utils import json_response
+from admin_app.admin.schemes import AdminSchema
+from admin_app.web.admin_app import View
+from admin_app.web.mw import require_login
+from admin_app.web.utils import json_response
 
 
 class AdminLoginView(View):

@@ -9,7 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from app.store.database.sqlalchemy_base import BaseModel
+from admin_app.store.database.sqlalchemy_base import BaseModel
 
 
 class UserSession(BaseModel):
