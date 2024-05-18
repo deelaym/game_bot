@@ -60,6 +60,7 @@ app = Application()
 def setup_app(config_path: str) -> Application:
     setup_logging(app)
     setup_config(app, config_path)
+    setup_store(app)
     session_setup(app, EncryptedCookieStorage(app.config.session.key))
     setup_routes(app)
     setup_aiohttp_apispec(
@@ -69,5 +70,4 @@ def setup_app(config_path: str) -> Application:
         swagger_path="/docs",
     )
     setup_middlewares(app)
-    setup_store(app)
     return app

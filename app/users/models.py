@@ -52,6 +52,7 @@ class SessionModel(BaseModel):
     round_number = Column(Integer, default=1)
     state = Column(String, default="start")
     message_id = Column(BigInteger)
+    polls_time = Column(Integer, default=60)
     users = relationship(
         "UserModel",
         secondary="user_session",

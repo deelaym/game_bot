@@ -38,5 +38,5 @@ class SetTimeOfPolls(View):
     @request_schema(TimeSchema)
     @response_schema(OkResponseSchema, 200)
     async def post(self):
-        self.store.tg_bot.set_seconds(self.data["seconds"])
+        await self.store.user.set_seconds(self.data["session_id"], self.data["seconds"])
         return json_response()
