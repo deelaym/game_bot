@@ -11,19 +11,15 @@ class BotManager:
         self.logger = getLogger("handler")
 
     async def handle_updates(self, updates: list[Update]):
-        self.logger.info("state: %s", self.app.store.fsm.state)
-
         for update in updates:
             if update.message and update.message.text:
                 text = update.message.text.split("@")[0][1:]
                 await self.app.store.fsm.launch_func(text, update)
             else:
-                await self.app.store.fsm.launch_func(
-                    self.app.store.fsm.state, update
-                )
+                state = await self.app.store.user.get_state(update.message.chat.id_)
+                await self.app.store.fsm.launch_func(state, update)
 
     async def start_button(self, update):
-        self.app.store.fsm.state = "start"
         game_session = await self.app.store.user.get_game_session(
             update.message.chat.id_
         )
@@ -53,12 +49,7 @@ class BotManager:
                 update, data["result"]["message_id"]
             )
 
-            self.app.store.fsm.state = await self.app.store.user.set_state(
-                update.message.chat.id_,
-                self.app.store.fsm.transitions[
-                    await self.app.store.user.get_state(update.message.chat.id_)
-                ]["next_state"],
-            )
+            await self.app.store.fsm.get_next_state(update.message.chat.id_)
         else:
             await self.app.store.tg_bot.send_message(
                 Message(
@@ -70,7 +61,6 @@ class BotManager:
             )
 
     async def start_round(self, update):
-        self.app.store.fsm.state = "round"
         game_session = await self.app.store.user.get_game_session(
             update.message.chat.id_
         )
@@ -132,16 +122,9 @@ class BotManager:
                     Message(chat_id=update.message.chat.id_, text="Финал!")
                 )
             case 1 | 0:
-                self.app.store.fsm.state = await self.app.store.user.set_state(
-                    update.message.chat.id_,
-                    self.app.store.fsm.transitions[
-                        await self.app.store.user.get_state(
-                            update.message.chat.id_
-                        )
-                    ]["next_state"],
-                )
+                state = await self.app.store.fsm.get_next_state(update.message.chat.id_)
                 await self.app.store.fsm.launch_func(
-                    self.app.store.fsm.state, update
+                    state, update
                 )
                 return True
             case _:

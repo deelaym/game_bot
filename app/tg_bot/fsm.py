@@ -6,7 +6,6 @@ from app.tg_bot.dataclasses import Chat, MessageObject, Update
 class FSM:
     def __init__(self, app, state=None):
         self.app = app
-        self.state = state
         self.transitions = {}
         self.logger = getLogger("fsm")
 
@@ -50,7 +49,13 @@ class FSM:
     async def launch_func(self, state, *args, **kwargs):
         transition = self.transitions.get(state, None)
         if transition:
-            self.state = state
             await transition["func"](*args, **kwargs)
         else:
             raise ValueError(state)
+
+    async def get_next_state(self, chat_id):
+        current_state = await self.app.store.user.get_state(chat_id)
+        state = self.transitions[current_state]["next_state"]
+        await self.app.store.user.set_state(chat_id, state)
+        return state
+
