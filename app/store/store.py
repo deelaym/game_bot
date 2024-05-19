@@ -1,4 +1,5 @@
 from app.store.database.database import Database
+from app.tg_bot.fsm import FSM
 
 
 class Store:
@@ -7,9 +8,10 @@ class Store:
         from app.tg_bot.manager import BotManager
         from app.users.accessor import UserAccessor
 
+        self.bot_manager = BotManager(app)
         self.user = UserAccessor(app)
         self.tg_bot = TgApiAccessor(app)
-        self.bot_manager = BotManager(app)
+        self.fsm = FSM(app)
 
 
 def setup_store(app):
