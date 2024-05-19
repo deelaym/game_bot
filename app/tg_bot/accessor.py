@@ -85,6 +85,10 @@ class TgApiAccessor(BaseAccessor):
             return updates
 
     async def send_start_button_message(self, message, update) -> None:
+        seconds = await self.app.store.user.get_seconds(update.message.chat.id_)
+        if seconds > 5:
+            self.seconds = seconds
+
         send_url = self._build_query(
             host=API_PATH,
             token=self.app.config.bot.token,
@@ -102,6 +106,7 @@ class TgApiAccessor(BaseAccessor):
         if not data["ok"]:
             await asyncio.sleep(data["parameters"]["retry_after"])
             await self.send_start_button_message(message, update)
+            return
         return data
 
     async def finish_registration(self, update, message_id):
@@ -127,6 +132,7 @@ class TgApiAccessor(BaseAccessor):
         if not data["ok"]:
             await asyncio.sleep(data["parameters"]["retry_after"])
             await self.delete_message(chat_id, message_id)
+            return
         return data
 
     async def check_users_in_session_enough(self, update):
@@ -144,14 +150,9 @@ class TgApiAccessor(BaseAccessor):
             )
             await self.app.store.user.stop_game_session(update)
         else:
-            self.app.store.fsm.state = await self.app.store.user.set_state(
-                update.message.chat.id_,
-                self.app.store.fsm.transitions[
-                    await self.app.store.user.get_state(update.message.chat.id_)
-                ]["next_state"],
-            )
+            state = await self.app.store.fsm.get_next_state(update.message.chat.id_)
             await self.app.store.fsm.launch_func(
-                self.app.store.fsm.state, update
+                state, update
             )
 
     async def send_message(self, message):
@@ -168,14 +169,15 @@ class TgApiAccessor(BaseAccessor):
         if not data["ok"]:
             await asyncio.sleep(data["parameters"]["retry_after"])
             await self.send_message(message)
+            return
         return data
 
-    async def get_profile_photo(self, user_id) -> list:
+    async def get_profile_photo(self, user_id, limit=1) -> list:
         url = self._build_query(
             host=API_PATH,
             token=self.app.config.bot.token,
             method="getUserProfilePhotos",
-            params={"user_id": user_id, "limit": 1},
+            params={"user_id": user_id, "limit": limit},
         )
 
         async with self.session.get(url) as response:
@@ -218,6 +220,7 @@ class TgApiAccessor(BaseAccessor):
         if not data["ok"]:
             await asyncio.sleep(data["parameters"]["retry_after"])
             await self.send_photo(user, chat_id)
+            return
         return data
 
     async def send_poll(self, update, first_user, second_user):
@@ -245,8 +248,16 @@ class TgApiAccessor(BaseAccessor):
         if not poll["ok"]:
             await asyncio.sleep(poll["parameters"]["retry_after"])
             await self.send_poll(update, first_user, second_user)
+            return
+
+        seconds = await self.app.store.user.get_seconds(poll["result"]["chat"]["id"])
+        if seconds > 5:
+            self.seconds = seconds
 
         await asyncio.sleep(self.seconds)
+
+        if await self.app.store.bot_manager.is_game_stop(update):
+            return
 
         poll_answer = await self.stop_poll(update, poll["result"]["message_id"])
         poll_answer["poll"] = poll_answer["result"]
@@ -272,6 +283,7 @@ class TgApiAccessor(BaseAccessor):
         if not poll["ok"]:
             await asyncio.sleep(poll["parameters"]["retry_after"])
             await self.stop_poll(update, message_id)
+            return
         return poll
 
     async def get_poll_answers(self, first_id, second_id, update):
@@ -291,3 +303,6 @@ class TgApiAccessor(BaseAccessor):
         await self.app.store.user.set_points(
             first_id, second_id, first_points, second_points
         )
+
+    def set_seconds(self, seconds):
+        self.seconds = seconds
