@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from app.web.config import DatabaseConfig
+from admin_app.web.config import DatabaseConfig
 from admin_app.store.database.sqlalchemy_base import BaseModel
 
 

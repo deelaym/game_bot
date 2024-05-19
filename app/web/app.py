@@ -4,8 +4,6 @@ from aiohttp.web import (
     View as AiohttpView,
 )
 from aiohttp_apispec import setup_aiohttp_apispec
-from aiohttp_session import setup as session_setup
-from aiohttp_session.cookie_storage import EncryptedCookieStorage
 
 from app.web.logger import setup_logging
 

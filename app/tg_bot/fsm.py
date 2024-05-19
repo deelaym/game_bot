@@ -36,7 +36,9 @@ class FSM:
                 "func": partial(self.app.store.user.get_winners, about=True),
             },
         }
-        games_in_progress = await self.app.store.user.get_all_in_progress_game_sessions()
+        games_in_progress = (
+            await self.app.store.user.get_all_in_progress_game_sessions()
+        )
         tasks = []
         for game in games_in_progress:
             if game.state:
@@ -58,4 +60,3 @@ class FSM:
         state = self.transitions[current_state]["next_state"]
         await self.app.store.user.set_state(chat_id, state)
         return state
-

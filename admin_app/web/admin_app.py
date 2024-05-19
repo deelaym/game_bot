@@ -56,7 +56,7 @@ admin_app = Application()
 
 
 def setup_app(config_path: str) -> Application:
-    from admin_app.admin.routes import setup_routes  # noqa: PLC0415
+    from admin_app.web.routes import setup_routes  # noqa: PLC0415
 
     setup_logging(admin_app)
     setup_config(admin_app, config_path)

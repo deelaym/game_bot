@@ -41,8 +41,6 @@ async def check_login(request, handler):
             admin_session["email"]
         ):
             raise HTTPUnauthorized
-    else:
-        raise HTTPUnauthorized
 
     return await handler(request)
 
