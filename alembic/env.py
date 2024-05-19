@@ -4,16 +4,14 @@ from logging.config import fileConfig
 
 import yaml
 from dotenv import load_dotenv
-from sqlalchemy import pool, URL, MetaData
+from sqlalchemy import pool, URL
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config, create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
 from app.web.config import DatabaseConfig
-from app.store.database.sqlalchemy_base import BaseModel as tg_base
-from admin_app.store.database.sqlalchemy_base import BaseModel as admin_base
-
+from admin_app.store.database.sqlalchemy_base import BaseModel
 
 
 # this is the Alembic Config object, which provides
@@ -51,20 +49,6 @@ config.set_main_option(
     ).render_as_string(hide_password=False),
 )
 
-# engine = create_async_engine(
-#     URL.create(
-#         drivername='postgresql+asyncpg',
-#         username=app_config.user,
-#         password=app_config.password,
-#         host=app_config.host,
-#         port=app_config.port,
-#         database=app_config.database,
-#     ), echo=False,
-#     )
-#
-# metadata = MetaData()
-# tg_base.metadata.reflect(bind=engine, tables=metadata.tables)
-# admin_base.metadata.reflect(bind=engine, tables=metadata.tables)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -74,7 +58,7 @@ fileConfig(config.config_file_name)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = admin_base.metadata
+target_metadata = BaseModel.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

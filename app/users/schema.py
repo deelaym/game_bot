@@ -19,7 +19,3 @@ class UserSessionSchema(UserSchema, SessionSchema):
     points = fields.Int()
     in_game = fields.Boolean()
     photo = fields.Str()
-
-
-class StatisticsSchema(UserSessionSchema):
-    users = fields.Nested(UserSessionSchema, many=True)

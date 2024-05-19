@@ -29,7 +29,7 @@ class TgApiAccessor(BaseAccessor):
         self.session: ClientSession | None = None
         self.offset: int = -2
         self.poller: Poller | None = None
-        self.seconds: int = 60
+        self.seconds: int = 10
 
     async def connect(self, app) -> None:
         self.session = ClientSession(connector=TCPConnector(verify_ssl=False))
@@ -85,10 +85,6 @@ class TgApiAccessor(BaseAccessor):
             return updates
 
     async def send_start_button_message(self, message, update) -> None:
-        seconds = await self.app.store.user.get_seconds(update.message.chat.id_)
-        if seconds > 5:
-            self.seconds = seconds
-
         send_url = self._build_query(
             host=API_PATH,
             token=self.app.config.bot.token,
@@ -251,12 +247,6 @@ class TgApiAccessor(BaseAccessor):
             return
 
         seconds = await self.app.store.user.get_seconds(poll["result"]["chat"]["id"])
-        if seconds > 5:
-            self.seconds = seconds
-
-        seconds = await self.app.store.user.get_seconds(
-            poll["result"]["chat"]["id"]
-        )
         if seconds > 5:
             self.seconds = seconds
 

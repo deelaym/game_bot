@@ -1,3 +1,5 @@
+import asyncio
+from functools import partial
 from logging import getLogger
 
 from app.tg_bot.dataclasses import Chat, MessageObject, Update
@@ -31,20 +33,18 @@ class FSM:
             },
             "about": {
                 "next_state": None,
-                "func": self.app.store.user.get_winners,
-            },
-            None: {
-                "next_state": None,
-                "func": self.logger.debug,
+                "func": partial(self.app.store.user.get_winners, about=True),
             },
         }
-        for (
-            game
-        ) in await self.app.store.user.get_all_in_progress_game_sessions():
+        games_in_progress = await self.app.store.user.get_all_in_progress_game_sessions()
+        tasks = []
+        for game in games_in_progress:
             if game.state:
-                await self.transitions[game.state]["func"](
+                task = self.transitions[game.state]["func"](
                     Update(message=MessageObject(chat=Chat(id_=game.chat_id)))
                 )
+                tasks.append(task)
+        await asyncio.gather(*tasks)
 
     async def launch_func(self, state, *args, **kwargs):
         transition = self.transitions.get(state, None)

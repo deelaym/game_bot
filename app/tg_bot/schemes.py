@@ -7,7 +7,3 @@ class FileIdSchema(Schema):
 
 class PhotoListSchema(Schema):
     photos = fields.Nested(FileIdSchema, many=True)
-
-
-class TimeSchema(Schema):
-    seconds = fields.Int()

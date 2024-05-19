@@ -3,7 +3,7 @@ from aiohttp.web_exceptions import HTTPException, HTTPUnauthorized
 from aiohttp.web_middlewares import middleware
 from aiohttp_apispec import validation_middleware
 
-from app.web.utils import error_json_response
+from admin_app.web.utils import error_json_response
 
 
 @middleware
@@ -41,6 +41,9 @@ async def check_login(request, handler):
             admin_session["email"]
         ):
             raise HTTPUnauthorized
+    else:
+        raise HTTPUnauthorized
+
     return await handler(request)
 
 

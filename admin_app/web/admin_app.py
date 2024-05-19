@@ -60,6 +60,7 @@ def setup_app(config_path: str) -> Application:
 
     setup_logging(admin_app)
     setup_config(admin_app, config_path)
+
     session_setup(
         admin_app, EncryptedCookieStorage(admin_app.config.session.key)
     )

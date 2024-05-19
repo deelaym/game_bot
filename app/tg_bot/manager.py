@@ -14,6 +14,7 @@ class BotManager:
         for update in updates:
             if update.message and update.message.text:
                 text = update.message.text.split("@")[0][1:]
+                self.logger.debug(text)
                 await self.app.store.fsm.launch_func(text, update)
             else:
                 state = await self.app.store.user.get_state(update.message.chat.id_)

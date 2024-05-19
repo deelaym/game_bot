@@ -5,7 +5,6 @@ from sqlalchemy.orm import joinedload
 from app.base.base_accessor import BaseAccessor
 from app.tg_bot.dataclasses import Message
 from app.users.models import SessionModel, UserModel, UserSession
-from app.users.schema import UserSessionSchema
 
 
 class UserAccessor(BaseAccessor):
@@ -21,8 +20,6 @@ class UserAccessor(BaseAccessor):
 
     async def add_user_to_session(self, update) -> None:
         async with self.app.database.session() as session:
-            self.app.store.fsm.state = "registration"
-
             game_session = (
                 await session.execute(
                     select(SessionModel)
@@ -92,8 +89,6 @@ class UserAccessor(BaseAccessor):
 
     async def stop_game_session(self, update) -> None:
         async with self.app.database.session() as session:
-            self.app.store.fsm.state = "stop"
-
             current_game_session = await session.scalar(
                 select(SessionModel).where(
                     SessionModel.chat_id == update.message.chat.id_,
@@ -126,13 +121,7 @@ class UserAccessor(BaseAccessor):
                     )
                 )
             if current_game_session:
-                self.app.store.fsm.state = self.app.store.fsm.transitions[
-                    await self.get_state(update.message.chat.id_)
-                ]["next_state"]
-                self.app.store.fsm.state = await self.app.store.user.set_state(
-                    update.message.chat.id_,
-                    self.app.store.fsm.transitions["stop"]["next_state"],
-                )
+                await self.app.store.fsm.get_next_state(update.message.chat.id_)
 
     async def get_amount_of_users_in_session(self, chat_id) -> int:
         async with self.app.database.session() as session:
@@ -148,7 +137,7 @@ class UserAccessor(BaseAccessor):
             )
             return users_amount
 
-    async def get_winners(self, update, game_session=None) -> None:
+    async def get_winners(self, update, game_session=None, about=None) -> None:
         async with self.app.database.session() as session:
             if game_session is None:
                 game_session = await self.get_game_session(
@@ -187,15 +176,12 @@ class UserAccessor(BaseAccessor):
             if len(users_in_session) == 1:
                 user_profile = await self.get_user(users_in_session[0].user_id)
                 username = user_profile.display_name
-                if self.app.store.fsm.state == "about":
+                if about:
                     text = f"Победитель прошлого конкурса: {username}"
                 else:
                     text = f"Победитель конкурса: {username}"
             else:
-                text = f"Топ-{len(users_in_session)}"
-                if self.app.store.fsm.state == "about":
-                    text += " в прошлом конкурсе"
-                text += ":"
+                text = f"Топ-{len(users_in_session)}:"
 
                 for i, user in enumerate(users_in_session, start=1):
                     user_profile = await self.get_user(user.user_id)
@@ -291,54 +277,6 @@ class UserAccessor(BaseAccessor):
                 )
             ).first()
 
-    async def create_user(self, id_, first_name, username):
-        user = UserModel(id_=id_, first_name=first_name, username=username)
-
-        async with self.app.database.session() as session:
-            session.add(user)
-            await session.commit()
-        return user
-
-    async def get_game_session_by_id(self, session_id):
-        async with self.app.database.session() as session:
-            return (
-                await session.execute(
-                    select(SessionModel)
-                    .where(SessionModel.id_ == session_id)
-                    .options(joinedload(SessionModel.users))
-                )
-            ).scalar()
-
-    async def add_user_to_session_manual(self, user, game_session):
-        async with self.app.database.session() as session:
-            game_session.users.append(user)
-            session.add(game_session)
-            await session.commit()
-
-    async def add_user_photo(self, user_id, session_id, photo):
-        async with self.app.database.session() as session:
-            user_session = (
-                await session.execute(
-                    select(UserSession).where(
-                        UserSession.user_id == user_id,
-                        UserSession.session_id == session_id,
-                    )
-                )
-            ).scalar()
-            user_session.file_id = photo
-            await session.commit()
-            return user_session
-
-    async def delete_user_from_session(self, user_id, session_id):
-        async with self.app.database.session() as session:
-            await session.execute(
-                delete(UserSession).where(
-                    UserSession.user_id == user_id,
-                    UserSession.session_id == session_id,
-                )
-            )
-            await session.commit()
-
     async def get_all_in_progress_game_sessions(self):
         async with self.app.database.session() as session:
             return (
@@ -367,36 +305,10 @@ class UserAccessor(BaseAccessor):
             await session.commit()
             return game_session
 
-    async def get_all_users_in_session(self, session_id):
-        async with self.app.database.session() as session:
-            return (
-                await session.scalars(
-                    select(UserSession)
-                    .where(UserSession.session_id == session_id)
-                    .order_by(UserSession.points.desc())
-                )
-            ).all()
-
-    async def get_game_statistics(self, session_id):
-        game_session = await self.get_game_session_by_id(session_id)
-        users = []
-        for user in await self.get_all_users_in_session(game_session.id_):
-            user_info = await self.get_user(user.user_id)
-            user_schema = UserSessionSchema().load(
-                {
-                    "user_id": user.user_id,
-                    "first_name": user_info.first_name,
-                    "username": user_info.username,
-                    "points": user.points,
-                    "in_game": user.in_game,
-                    "photo": user.file_id,
-                }
-            )
-            users.append(user_schema)
-
-        return {
-            "users": users,
-            "chat_id": game_session.chat_id,
-            "round_number": game_session.round_number,
-            "in_progress": game_session.in_progress,
-        }
+    async def get_seconds(self, chat_id):
+        try:
+            game_session = await self.get_game_session(chat_id)
+            seconds = game_session.polls_time
+        except AttributeError:
+            seconds = 60
+        return seconds

@@ -1,5 +1,4 @@
 from app.store.database.database import Database
-from app.tg_bot.fsm import FSM
 
 
 class Store:
@@ -7,6 +6,7 @@ class Store:
         from app.tg_bot.accessor import TgApiAccessor
         from app.tg_bot.manager import BotManager
         from app.users.accessor import UserAccessor
+        from app.tg_bot.fsm import FSM
 
         self.bot_manager = BotManager(app)
         self.user = UserAccessor(app)
