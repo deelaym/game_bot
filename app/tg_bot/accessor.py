@@ -302,15 +302,8 @@ class TgApiAccessor(BaseAccessor):
         self.logger.info("poll answers update: %s", update)
         first_user, second_user = update.poll.options
 
-        if first_user.voter_count > second_user.voter_count:
-            first_points = 1
-            second_points = 0
-        elif first_user.voter_count < second_user.voter_count:
-            first_points = 0
-            second_points = 1
-        else:
-            first_points = 1
-            second_points = 1
+        first_points = int(first_user.voter_count >= second_user.voter_count)
+        second_points = int(first_user.voter_count <= second_user.voter_count)
 
         await self.app.store.user.set_points(
             first_id, second_id, first_points, second_points
