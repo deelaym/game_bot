@@ -1,5 +1,6 @@
 import asyncio
 import json
+from asyncio import Queue
 from urllib.parse import urlencode
 
 from aiohttp import ClientSession, TCPConnector
@@ -16,7 +17,7 @@ from app.tg_bot.parsing_update import (
 )
 from app.tg_bot.poller import Poller
 from app.users.models import UserSession
-from app.web.tasks_creator import create_delayed_task
+from app.web.tasks_creator import create_delayed_task, create_task
 
 API_PATH = "https://api.telegram.org/bot"
 TIMEOUT = 60
@@ -29,20 +30,24 @@ class TgApiAccessor(BaseAccessor):
         self.session: ClientSession | None = None
         self.offset: int = -2
         self.poller: Poller | None = None
-        self.seconds: int = 10
+        self.queue: Queue | None = None
 
     async def connect(self, app) -> None:
         self.session = ClientSession(connector=TCPConnector(verify_ssl=False))
-
+        self.queue = asyncio.Queue()
         self.poller = Poller(app.store)
         self.logger.info("start polling")
         self.poller.start()
+        self.app.store.bot_manager.start(self.queue)
 
     async def disconnect(self, app) -> None:
         if self.poller:
             await self.poller.stop()
+        if self.app.store.bot_manager:
+            await self.app.store.bot_manager.stop()
         if self.session:
             await self.session.close()
+
 
     @staticmethod
     def _build_query(host, token, method, params):
@@ -75,14 +80,12 @@ class TgApiAccessor(BaseAccessor):
                         flag = False
                     case _:
                         update_obj = Update(update_id=update["update_id"])
+                        flag = False
 
                 self.logger.info(update_obj)
 
                 if flag:
-                    updates.append(update_obj)
-
-            await self.app.store.bot_manager.handle_updates(updates)
-            return updates
+                    self.queue.put_nowait(update_obj)
 
     async def send_start_button_message(self, message, update) -> None:
         send_url = self._build_query(
@@ -108,10 +111,10 @@ class TgApiAccessor(BaseAccessor):
     async def finish_registration(self, update, message_id):
         delete_message_task = create_delayed_task(  # noqa: F841
             self.delete_message(update.message.chat.id_, message_id),
-            delay=self.seconds,
+            delay=self.app.store.user.get_seconds(update.message.chat.id_),
         )
         check_users_task = create_delayed_task(  # noqa: F841
-            self.check_users_in_session_enough(update), delay=self.seconds
+            self.check_users_in_session_enough(update), delay=self.app.store.user.get_seconds(update.message.chat.id_)
         )
 
     async def delete_message(self, chat_id, message_id) -> None:
@@ -263,10 +266,8 @@ class TgApiAccessor(BaseAccessor):
         seconds = await self.app.store.user.get_seconds(
             poll["result"]["chat"]["id"]
         )
-        if seconds > 5:
-            self.seconds = seconds
 
-        await asyncio.sleep(self.seconds)
+        await asyncio.sleep(seconds)
 
         if await self.app.store.bot_manager.is_game_stop(update):
             return

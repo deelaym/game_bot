@@ -11,5 +11,5 @@ if __name__ == "__main__":
                 os.path.dirname(os.path.realpath(__file__)), "etc/config.yaml"
             )
         ),
-        port=8081,
+        port=8082,
     )

@@ -73,9 +73,10 @@ class UserAccessor(BaseAccessor):
 
                 try:
                     await session.commit()
-                    await self.app.store.tg_bot.notify_about_participation(
+                    data = await self.app.store.tg_bot.notify_about_participation(
                         update.callback_query, "Вы участвуете в конкурсе!"
                     )
+                    self.logger.debug("Notification %s", data)
                 except IntegrityError as e:
                     self.logger.error(e)
                 return existing_user if existing_user else user
@@ -137,7 +138,7 @@ class UserAccessor(BaseAccessor):
             )
             return users_amount
 
-    async def get_winners(self, update, game_session=None, about=None) -> None:
+    async def get_winners(self, update, game_session=None, about=None) -> str:
         async with self.app.database.session() as session:
             if game_session is None:
                 game_session = await self.get_game_session(
@@ -196,6 +197,7 @@ class UserAccessor(BaseAccessor):
                 await self.app.store.tg_bot.send_photo(
                     users_in_session[0], update.message.chat.id_
                 )
+            return text
 
     async def get_all_in_game_users(self, chat_id):
         async with self.app.database.session() as session:
@@ -287,7 +289,7 @@ class UserAccessor(BaseAccessor):
 
     async def get_state(self, chat_id):
         game_session = await self.get_game_session(chat_id)
-        return game_session.state
+        return game_session.state if game_session else None
 
     async def set_state(self, chat_id, state):
         async with self.app.database.session() as session:
@@ -310,5 +312,5 @@ class UserAccessor(BaseAccessor):
             game_session = await self.get_game_session(chat_id)
             seconds = game_session.polls_time
         except AttributeError:
-            seconds = 60
+            seconds = 15
         return seconds

@@ -1,15 +1,13 @@
 from admin_app.users.views import (
-    AddUserToSessionView,
+    UserSessionView,
     ChangeUserPhotoView,
     CreateGameSessionView,
-    DeleteUserFromSessionView,
     GetGameStatisticsView,
 )
 
 
 def setup_routes(app):
-    app.router.add_view("/add.user.to.session", AddUserToSessionView)
-    app.router.add_view("/change.user.photo", ChangeUserPhotoView)
-    app.router.add_view("/delete.user.from.session", DeleteUserFromSessionView)
-    app.router.add_view("/create.session", CreateGameSessionView)
-    app.router.add_view("/get.game.statistics", GetGameStatisticsView)
+    app.router.add_view("/session.user", UserSessionView)
+    app.router.add_view("/user.photo", ChangeUserPhotoView)
+    app.router.add_view("/session", CreateGameSessionView)
+    app.router.add_view("/game.statistics", GetGameStatisticsView)

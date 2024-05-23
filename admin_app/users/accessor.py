@@ -41,11 +41,20 @@ class UserAccessor(BaseAccessor):
 
     async def add_user_to_session_manual(self, user, game_session):
         async with self.app.database.session() as session:
+            game_session = await session.scalar(
+                select(SessionModel)
+                .where(
+                    SessionModel.id_ == game_session.id_,
+                )
+                .options(joinedload(SessionModel.users)))
+            user = await session.scalar(select(UserModel).where(UserModel.id_ == user.id_))
+
             game_session.users.append(user)
             session.add(game_session)
             await session.commit()
+            return game_session
 
-    async def add_user_photo(self, user_id, session_id, photo):
+    async def add_user_photo(self, user_id, session_id, file_id):
         async with self.app.database.session() as session:
             user_session = (
                 await session.execute(
@@ -55,7 +64,7 @@ class UserAccessor(BaseAccessor):
                     )
                 )
             ).scalar()
-            user_session.file_id = photo
+            user_session.file_id = file_id
             await session.commit()
             return user_session
 
@@ -91,7 +100,7 @@ class UserAccessor(BaseAccessor):
                     "username": user_info.username,
                     "points": user.points,
                     "in_game": user.in_game,
-                    "photo": user.file_id,
+                    "file_id": user.file_id,
                 }
             )
             users.append(user_schema)

@@ -1,25 +1,40 @@
 import json
 import random
+from asyncio import Task
 from logging import getLogger
 
-from app.tg_bot.dataclasses import ButtonMessage, Message, Update
+from app.tg_bot.dataclasses import ButtonMessage, Message
+from app.web.tasks_creator import create_task
 
 
 class BotManager:
     def __init__(self, app):
         self.app = app
-        self.logger = getLogger("handler")
+        self.logger = getLogger("manager")
+        self.manager_task: Task | None = None
 
-    async def handle_updates(self, updates: list[Update]):
-        for update in updates:
-            if update.message and update.message.text:
+    async def handle_updates(self, update):
+        if update.message:
+            if update.message.text:
                 text = update.message.text.split("@")[0][1:]
                 await self.app.store.fsm.launch_func(text, update)
-            else:
+            elif update.callback_query:
                 state = await self.app.store.user.get_state(
                     update.message.chat.id_
                 )
                 await self.app.store.fsm.launch_func(state, update)
+
+    async def _manager(self, queue):
+        while True:
+            update = await queue.get()
+            await self.handle_updates(update)
+
+    def start(self, queue):
+        self.manager_task = create_task(self._manager(queue))
+
+    async def stop(self, queue):
+        await queue.join()
+        self.manager_task.cancel()
 
     async def start_button(self, update):
         game_session = await self.app.store.user.get_game_session(
@@ -93,10 +108,6 @@ class BotManager:
                 if await self.is_game_stop(update):
                     return
                 await self.send_winner_in_round(update, first_user, second_user)
-
-                await self.app.store.user.set_round_number(
-                    update.message.chat.id_
-                )
             else:
                 winner = await self.app.store.user.get_winner_in_pair(
                     first_user
@@ -109,9 +120,12 @@ class BotManager:
                 await self.app.store.tg_bot.send_message(
                     Message(
                         chat_id=update.message.chat.id_,
-                        text=f"{winner} проходит в следующий раунд! ",
+                        text=f"{winner} проходит в следующий раунд!",
                     )
                 )
+        await self.app.store.user.set_round_number(
+            update.message.chat.id_
+        )
 
         await self.start_round(update)
 

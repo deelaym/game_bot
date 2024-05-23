@@ -53,10 +53,11 @@ class FSM:
         if transition:
             await transition["func"](*args, **kwargs)
         else:
-            raise ValueError(state)
+            self.logger.info("state is %s", state)
 
     async def get_next_state(self, chat_id):
         current_state = await self.app.store.user.get_state(chat_id)
-        state = self.transitions[current_state]["next_state"]
-        await self.app.store.user.set_state(chat_id, state)
-        return state
+        if current_state in self.transitions:
+            state = self.transitions[current_state]["next_state"]
+            await self.app.store.user.set_state(chat_id, state)
+            return state

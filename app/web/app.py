@@ -3,7 +3,6 @@ from aiohttp.web import (
     Request as AiohttpRequest,
     View as AiohttpView,
 )
-from aiohttp_apispec import setup_aiohttp_apispec
 
 from app.web.logger import setup_logging
 
@@ -54,14 +53,7 @@ app = Application()
 def setup_app(config_path: str) -> Application:
     setup_logging(app)
     setup_config(app, config_path)
-
     setup_routes(app)
-    setup_aiohttp_apispec(
-        app,
-        title="Telegram Photo Contest Bot",
-        url="/docs/json",
-        swagger_path="/docs",
-    )
     setup_middlewares(app)
     setup_store(app)
     return app

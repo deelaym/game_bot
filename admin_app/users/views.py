@@ -1,3 +1,4 @@
+from aiohttp.web_exceptions import HTTPBadRequest
 from aiohttp_apispec import docs, request_schema, response_schema
 from sqlalchemy.exc import IntegrityError
 
@@ -14,7 +15,7 @@ from admin_app.web.utils import json_response
 
 
 @require_login
-class AddUserToSessionView(View):
+class UserSessionView(View):
     @docs(
         tags=["game_session"],
         summary="Add user to existing game session",
@@ -36,12 +37,28 @@ class AddUserToSessionView(View):
             self.data["session_id"]
         )
 
-        await self.store.user.add_user_to_session_manual(user, game_session)
-        user_session = await self.store.user.add_user_photo(
-            user.id_, game_session.id_, self.data["photo"]
-        )
+        if game_session:
+            await self.store.user.add_user_to_session_manual(user, game_session)
+            user_session = await self.store.user.add_user_photo(
+                user.id_, game_session.id_, self.data["file_id"]
+            )
+        else:
+            raise HTTPBadRequest
 
         return json_response(data=UserSessionSchema().dump(user_session))
+
+    @docs(
+        tags=["game_session"],
+        summary="Removing a user from a game session",
+        description="Removing a user from a game session",
+    )
+    @request_schema(UserSessionSchema)
+    @response_schema(OkResponseSchema, 200)
+    async def delete(self):
+        await self.store.user.delete_user_from_session(
+            self.data["user_id"], self.data["session_id"]
+        )
+        return json_response()
 
 
 @require_login
@@ -53,27 +70,11 @@ class ChangeUserPhotoView(View):
     )
     @request_schema(UserSessionSchema)
     @response_schema(UserSessionSchema, 200)
-    async def post(self):
+    async def put(self):
         user_session = await self.store.user.add_user_photo(
-            self.data["user_id"], self.data["session_id"], self.data["photo"]
+            self.data["user_id"], self.data["session_id"], self.data["file_id"]
         )
         return json_response(data=UserSessionSchema().dump(user_session))
-
-
-@require_login
-class DeleteUserFromSessionView(View):
-    @docs(
-        tags=["game_session"],
-        summary="Removing a user from a game session",
-        description="Removing a user from a game session",
-    )
-    @request_schema(UserSessionSchema)
-    @response_schema(OkResponseSchema, 200)
-    async def post(self):
-        await self.store.user.delete_user_from_session(
-            self.data["user_id"], self.data["session_id"]
-        )
-        return json_response()
 
 
 @require_login
@@ -101,7 +102,7 @@ class GetGameStatisticsView(View):
     )
     @request_schema(SessionSchema)
     @response_schema(StatisticsSchema, 200)
-    async def post(self):
+    async def get(self):
         statistics = await self.store.user.get_game_statistics(
             self.data["session_id"]
         )

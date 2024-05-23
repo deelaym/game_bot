@@ -29,8 +29,8 @@ class MessageObject:
 
 @dataclass
 class CallbackQueryObject:
-    id_: int
-    from_: FromObject
+    id_: int | None = None
+    from_: FromObject | None = None
 
 
 @dataclass

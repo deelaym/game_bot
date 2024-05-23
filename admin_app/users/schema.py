@@ -18,7 +18,7 @@ class UserSessionSchema(UserSchema, SessionSchema):
     id_ = fields.Int()
     points = fields.Int()
     in_game = fields.Boolean()
-    photo = fields.Str()
+    file_id = fields.Str()
 
 
 class StatisticsSchema(UserSessionSchema):
