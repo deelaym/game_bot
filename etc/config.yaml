@@ -1,5 +1,5 @@
 debug:
-  echo: true
+  echo: false
 
 web:
   host: 127.0.0.1

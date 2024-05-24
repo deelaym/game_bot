@@ -9,7 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from app.store.database.sqlalchemy_base import BaseModel
+from admin_app.store.database.sqlalchemy_base import BaseModel
 
 
 class UserSession(BaseModel):
@@ -52,7 +52,7 @@ class SessionModel(BaseModel):
     round_number = Column(Integer, default=1)
     state = Column(String, default="start")
     message_id = Column(BigInteger)
-    polls_time = Column(Integer, default=10)
+    polls_time = Column(Integer, default=60)
     users = relationship(
         "UserModel",
         secondary="user_session",

@@ -85,10 +85,6 @@ class TgApiAccessor(BaseAccessor):
             return updates
 
     async def send_start_button_message(self, message, update) -> None:
-        seconds = await self.app.store.user.get_seconds(update.message.chat.id_)
-        if seconds > 5:
-            self.seconds = seconds
-
         send_url = self._build_query(
             host=API_PATH,
             token=self.app.config.bot.token,
@@ -106,7 +102,7 @@ class TgApiAccessor(BaseAccessor):
         if not data["ok"]:
             await asyncio.sleep(data["parameters"]["retry_after"])
             await self.send_start_button_message(message, update)
-            return
+            return None
         return data
 
     async def finish_registration(self, update, message_id):
@@ -132,7 +128,7 @@ class TgApiAccessor(BaseAccessor):
         if not data["ok"]:
             await asyncio.sleep(data["parameters"]["retry_after"])
             await self.delete_message(chat_id, message_id)
-            return
+            return None
         return data
 
     async def check_users_in_session_enough(self, update):
@@ -141,6 +137,7 @@ class TgApiAccessor(BaseAccessor):
                 update.message.chat.id_
             )
         )
+
         if number_of_users < 2:
             await self.send_message(
                 Message(
@@ -150,10 +147,23 @@ class TgApiAccessor(BaseAccessor):
             )
             await self.app.store.user.stop_game_session(update)
         else:
-            state = await self.app.store.fsm.get_next_state(update.message.chat.id_)
-            await self.app.store.fsm.launch_func(
-                state, update
+            all_users = (
+                await self.app.store.user.get_amount_of_users_in_session(
+                    update.message.chat.id_
+                )
             )
+
+            await self.send_message(
+                Message(
+                    chat_id=update.message.chat.id_,
+                    text=f"Всего участников: {all_users}",
+                )
+            )
+
+            state = await self.app.store.fsm.get_next_state(
+                update.message.chat.id_
+            )
+            await self.app.store.fsm.launch_func(state, update)
 
     async def send_message(self, message):
         send_url = self._build_query(
@@ -169,7 +179,7 @@ class TgApiAccessor(BaseAccessor):
         if not data["ok"]:
             await asyncio.sleep(data["parameters"]["retry_after"])
             await self.send_message(message)
-            return
+            return None
         return data
 
     async def get_profile_photo(self, user_id, limit=1) -> list:
@@ -220,7 +230,7 @@ class TgApiAccessor(BaseAccessor):
         if not data["ok"]:
             await asyncio.sleep(data["parameters"]["retry_after"])
             await self.send_photo(user, chat_id)
-            return
+            return None
         return data
 
     async def send_poll(self, update, first_user, second_user):
@@ -250,7 +260,9 @@ class TgApiAccessor(BaseAccessor):
             await self.send_poll(update, first_user, second_user)
             return
 
-        seconds = await self.app.store.user.get_seconds(poll["result"]["chat"]["id"])
+        seconds = await self.app.store.user.get_seconds(
+            poll["result"]["chat"]["id"]
+        )
         if seconds > 5:
             self.seconds = seconds
 
@@ -283,26 +295,16 @@ class TgApiAccessor(BaseAccessor):
         if not poll["ok"]:
             await asyncio.sleep(poll["parameters"]["retry_after"])
             await self.stop_poll(update, message_id)
-            return
+            return None
         return poll
 
     async def get_poll_answers(self, first_id, second_id, update):
         self.logger.info("poll answers update: %s", update)
         first_user, second_user = update.poll.options
 
-        if first_user.voter_count > second_user.voter_count:
-            first_points = 1
-            second_points = 0
-        elif first_user.voter_count < second_user.voter_count:
-            first_points = 0
-            second_points = 1
-        else:
-            first_points = 1
-            second_points = 1
+        first_points = int(first_user.voter_count >= second_user.voter_count)
+        second_points = int(first_user.voter_count <= second_user.voter_count)
 
         await self.app.store.user.set_points(
             first_id, second_id, first_points, second_points
         )
-
-    def set_seconds(self, seconds):
-        self.seconds = seconds

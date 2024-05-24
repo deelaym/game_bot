@@ -1,3 +1,5 @@
+import hashlib
+
 from aiohttp.web import json_response as aiohttp_json_response
 from aiohttp.web_response import Response
 
@@ -25,3 +27,9 @@ def error_json_response(
             "data": data or {},
         },
     )
+
+
+def hash_password(password):
+    password_bytes = password.encode("utf-8")
+    hash_object = hashlib.sha256(password_bytes)
+    return hash_object.hexdigest()

@@ -10,8 +10,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from app.store.database.sqlalchemy_base import BaseModel
-from app.web.config import DatabaseConfig
+from admin_app.web.config import DatabaseConfig
+from admin_app.store.database.sqlalchemy_base import BaseModel
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -47,6 +48,7 @@ config.set_main_option(
         database=app_config.database,
     ).render_as_string(hide_password=False),
 )
+
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

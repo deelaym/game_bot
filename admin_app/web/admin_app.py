@@ -4,18 +4,18 @@ from aiohttp.web import (
     View as AiohttpView,
 )
 from aiohttp_apispec import setup_aiohttp_apispec
-
-from app.web.logger import setup_logging
-
-from .config import setup_config
-from .mw import setup_middlewares
-from .routes import setup_routes
+from aiohttp_session import setup as session_setup
+from aiohttp_session.cookie_storage import EncryptedCookieStorage
 
 __all__ = ("Application",)
 
 
-from ..store.database.database import Database
-from ..store.store import Store, setup_store
+from admin_app.store import Store
+from admin_app.store.database.database import Database
+from admin_app.store.store import setup_store
+from admin_app.web.config import setup_config
+from admin_app.web.logger import setup_logging
+from admin_app.web.mw import setup_middlewares
 
 
 class Application(AiohttpApplication):
@@ -25,6 +25,10 @@ class Application(AiohttpApplication):
 
 
 class Request(AiohttpRequest):
+    from admin_app.admin.models import AdminModel  # noqa: PLC0415
+
+    admin: AdminModel | None = None
+
     @property
     def app(self) -> Application:
         return super().app()
@@ -48,20 +52,25 @@ class View(AiohttpView):
         return self.request.get("data", {})
 
 
-app = Application()
+admin_app = Application()
 
 
 def setup_app(config_path: str) -> Application:
-    setup_logging(app)
-    setup_config(app, config_path)
+    from admin_app.web.routes import setup_routes  # noqa: PLC0415
 
-    setup_routes(app)
+    setup_logging(admin_app)
+    setup_config(admin_app, config_path)
+
+    session_setup(
+        admin_app, EncryptedCookieStorage(admin_app.config.session.key)
+    )
+    setup_routes(admin_app)
     setup_aiohttp_apispec(
-        app,
+        admin_app,
         title="Telegram Photo Contest Bot",
         url="/docs/json",
         swagger_path="/docs",
     )
-    setup_middlewares(app)
-    setup_store(app)
-    return app
+    setup_middlewares(admin_app)
+    setup_store(admin_app)
+    return admin_app

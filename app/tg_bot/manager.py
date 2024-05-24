@@ -16,7 +16,9 @@ class BotManager:
                 text = update.message.text.split("@")[0][1:]
                 await self.app.store.fsm.launch_func(text, update)
             else:
-                state = await self.app.store.user.get_state(update.message.chat.id_)
+                state = await self.app.store.user.get_state(
+                    update.message.chat.id_
+                )
                 await self.app.store.fsm.launch_func(state, update)
 
     async def start_button(self, update):
@@ -122,10 +124,10 @@ class BotManager:
                     Message(chat_id=update.message.chat.id_, text="Финал!")
                 )
             case 1 | 0:
-                state = await self.app.store.fsm.get_next_state(update.message.chat.id_)
-                await self.app.store.fsm.launch_func(
-                    state, update
+                state = await self.app.store.fsm.get_next_state(
+                    update.message.chat.id_
                 )
+                await self.app.store.fsm.launch_func(state, update)
                 return True
             case _:
                 await self.app.store.tg_bot.send_message(

@@ -1,9 +1,9 @@
 from aiohttp.web_exceptions import HTTPBadRequest, HTTPForbidden
 from sqlalchemy import select
 
-from app.admin.models import AdminModel
-from app.base.base_accessor import BaseAccessor
-from app.web.utils import hash_password
+from admin_app.admin.models import AdminModel
+from admin_app.base.base_accessor import BaseAccessor
+from admin_app.web.utils import hash_password
 
 
 class AdminAccessor(BaseAccessor):

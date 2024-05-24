@@ -1,18 +1,16 @@
-from app.admin.accessor import AdminAccessor
 from app.store.database.database import Database
-from app.tg_bot.fsm import FSM
 
 
 class Store:
     def __init__(self, app, *args, **kwargs):
         from app.tg_bot.accessor import TgApiAccessor
+        from app.tg_bot.fsm import FSM
         from app.tg_bot.manager import BotManager
         from app.users.accessor import UserAccessor
 
         self.bot_manager = BotManager(app)
         self.user = UserAccessor(app)
         self.tg_bot = TgApiAccessor(app)
-        self.admin = AdminAccessor(app)
         self.fsm = FSM(app)
 
 

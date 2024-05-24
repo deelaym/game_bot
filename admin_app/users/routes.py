@@ -1,4 +1,4 @@
-from app.users.views import (
+from admin_app.users.views import (
     AddUserToSessionView,
     ChangeUserPhotoView,
     CreateGameSessionView,
