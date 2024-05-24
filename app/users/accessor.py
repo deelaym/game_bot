@@ -140,8 +140,9 @@ class UserAccessor(BaseAccessor):
             )
             return users_amount
 
-    async def get_winners(self, update, game_session=None,
-                          about=None) -> str | None:
+    async def get_winners(
+        self, update, game_session=None, about=None
+    ) -> str | None:
         async with self.app.database.session() as session:
             if game_session is None:
                 game_session = await self.get_game_session(

@@ -14,6 +14,6 @@ def test_error_json_response():
     assert (
         data.body
         == '{"status": "HTTPNotFound", '
-           '"message": "HTTPNotFound", '
-           '"data": {"error": "404 HTTPNotFound"}}'.encode()
+        '"message": "HTTPNotFound", '
+        '"data": {"error": "404 HTTPNotFound"}}'.encode()
     )

@@ -51,8 +51,8 @@ class BotManager:
                 ButtonMessage(
                     chat_id=update.message.chat.id_,
                     text=f"Принять участие в фото конкурсе. "
-                         f"Начало через {self.app.store.tg_bot.seconds} "
-                         f"секунд.",
+                    f"Начало через {self.app.store.tg_bot.seconds} "
+                    f"секунд.",
                     reply_markup=json.dumps(keyboard),
                 ),
                 update,

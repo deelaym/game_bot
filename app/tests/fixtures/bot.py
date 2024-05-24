@@ -139,7 +139,7 @@ def tg_api_poll_another_update_mock(store: Store):
                 },
                 "date": 1716540685,
                 "text": "Принять участие в фото конкурсе. "
-                        "Начало через 15 секунд.",
+                "Начало через 15 секунд.",
                 "reply_markup": {
                     "inline_keyboard": [
                         [{"text": "Участвовать", "callback_data": "data"}]
