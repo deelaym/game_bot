@@ -11,15 +11,14 @@ class TestCurrentView:
         data = await response.json()
         assert data["status"] == "Unauthorized"
 
-    async def test_authorized(self, auth_cli: TestClient, config: Config) -> None:
+    async def test_authorized(
+        self, auth_cli: TestClient, config: Config
+    ) -> None:
         response = await auth_cli.get("/admin.current")
         assert response.status == 200
 
         data = await response.json()
         assert data == {
             "status": "ok",
-            "data": {
-                "id": 1,
-                "email": config.admin.email
-            }
+            "data": {"id": 1, "email": config.admin.email},
         }

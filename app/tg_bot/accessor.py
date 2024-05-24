@@ -17,7 +17,7 @@ from app.tg_bot.parsing_update import (
 )
 from app.tg_bot.poller import Poller
 from app.users.models import UserSession
-from app.web.tasks_creator import create_delayed_task, create_task
+from app.web.tasks_creator import create_delayed_task
 
 API_PATH = "https://api.telegram.org/bot"
 TIMEOUT = 60
@@ -31,6 +31,7 @@ class TgApiAccessor(BaseAccessor):
         self.offset: int = -2
         self.poller: Poller | None = None
         self.queue: Queue | None = None
+        self.seconds = 15
 
     async def connect(self, app) -> None:
         self.session = ClientSession(connector=TCPConnector(verify_ssl=False))
@@ -48,7 +49,6 @@ class TgApiAccessor(BaseAccessor):
         if self.session:
             await self.session.close()
 
-
     @staticmethod
     def _build_query(host, token, method, params):
         params.setdefault("timeout", TIMEOUT)
@@ -65,27 +65,29 @@ class TgApiAccessor(BaseAccessor):
             data = await response.json()
 
             self.logger.debug("update response: %s", data)
+            await self.send_updates(data)
+            return data
 
-            updates = []
-            for update in data.get("result", []):
-                self.offset = update["update_id"]
-                flag = True
-                match update:
-                    case {"message": _}:
-                        update_obj = get_message_from_update(update)
-                    case {"callback_query": _}:
-                        update_obj = get_callback_query_from_update(update)
-                    case {"poll": _}:
-                        update_obj = get_poll_answer_from_update(update)
-                        flag = False
-                    case _:
-                        update_obj = Update(update_id=update["update_id"])
-                        flag = False
+    async def send_updates(self, data):
+        for update in data.get("result", []):
+            self.offset = update["update_id"]
+            flag = True
+            match update:
+                case {"message": _}:
+                    update_obj = get_message_from_update(update)
+                case {"callback_query": _}:
+                    update_obj = get_callback_query_from_update(update)
+                case {"poll": _}:
+                    update_obj = get_poll_answer_from_update(update)
+                    flag = False
+                case _:
+                    update_obj = Update(update_id=update["update_id"])
+                    flag = False
 
-                self.logger.info(update_obj)
+            self.logger.info(update_obj)
 
-                if flag:
-                    self.queue.put_nowait(update_obj)
+            if flag:
+                self.queue.put_nowait(update_obj)
 
     async def send_start_button_message(self, message, update) -> None:
         send_url = self._build_query(
@@ -111,10 +113,15 @@ class TgApiAccessor(BaseAccessor):
     async def finish_registration(self, update, message_id):
         delete_message_task = create_delayed_task(  # noqa: F841
             self.delete_message(update.message.chat.id_, message_id),
-            delay=self.app.store.user.get_seconds(update.message.chat.id_),
+            delay=await self.app.store.user.get_seconds(
+                update.message.chat.id_
+            ),
         )
         check_users_task = create_delayed_task(  # noqa: F841
-            self.check_users_in_session_enough(update), delay=self.app.store.user.get_seconds(update.message.chat.id_)
+            self.check_users_in_session_enough(update),
+            delay=await self.app.store.user.get_seconds(
+                update.message.chat.id_
+            ),
         )
 
     async def delete_message(self, chat_id, message_id) -> None:
@@ -309,3 +316,4 @@ class TgApiAccessor(BaseAccessor):
         await self.app.store.user.set_points(
             first_id, second_id, first_points, second_points
         )
+        return first_points, second_points

@@ -50,8 +50,9 @@ class BotManager:
             data = await self.app.store.tg_bot.send_start_button_message(
                 ButtonMessage(
                     chat_id=update.message.chat.id_,
-                    text=f"Принять участие в фото конкурсе. \
-                    Начало через {self.app.store.tg_bot.seconds} секунд.",
+                    text=f"Принять участие в фото конкурсе. "
+                         f"Начало через {self.app.store.tg_bot.seconds} "
+                         f"секунд.",
                     reply_markup=json.dumps(keyboard),
                 ),
                 update,
@@ -123,9 +124,7 @@ class BotManager:
                         text=f"{winner} проходит в следующий раунд!",
                     )
                 )
-        await self.app.store.user.set_round_number(
-            update.message.chat.id_
-        )
+        await self.app.store.user.set_round_number(update.message.chat.id_)
 
         await self.start_round(update)
 

@@ -73,8 +73,10 @@ class UserAccessor(BaseAccessor):
 
                 try:
                     await session.commit()
-                    data = await self.app.store.tg_bot.notify_about_participation(
-                        update.callback_query, "Вы участвуете в конкурсе!"
+                    data = (
+                        await self.app.store.tg_bot.notify_about_participation(
+                            update.callback_query, "Вы участвуете в конкурсе!"
+                        )
                     )
                     self.logger.debug("Notification %s", data)
                 except IntegrityError as e:
@@ -138,7 +140,8 @@ class UserAccessor(BaseAccessor):
             )
             return users_amount
 
-    async def get_winners(self, update, game_session=None, about=None) -> str:
+    async def get_winners(self, update, game_session=None,
+                          about=None) -> str | None:
         async with self.app.database.session() as session:
             if game_session is None:
                 game_session = await self.get_game_session(
@@ -151,7 +154,7 @@ class UserAccessor(BaseAccessor):
                         text="Еще не было конкурсов.",
                     )
                 )
-                return
+                return None
 
             if game_session.in_progress:
                 users_in_session = (

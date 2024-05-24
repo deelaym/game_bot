@@ -46,8 +46,11 @@ class UserAccessor(BaseAccessor):
                 .where(
                     SessionModel.id_ == game_session.id_,
                 )
-                .options(joinedload(SessionModel.users)))
-            user = await session.scalar(select(UserModel).where(UserModel.id_ == user.id_))
+                .options(joinedload(SessionModel.users))
+            )
+            user = await session.scalar(
+                select(UserModel).where(UserModel.id_ == user.id_)
+            )
 
             game_session.users.append(user)
             session.add(game_session)

@@ -1,8 +1,8 @@
 from admin_app.users.views import (
-    UserSessionView,
     ChangeUserPhotoView,
     CreateGameSessionView,
     GetGameStatisticsView,
+    UserSessionView,
 )
 
 

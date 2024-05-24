@@ -1,16 +1,18 @@
 import asyncio
 import logging
 import os
-from typing import Iterator
+from collections.abc import Iterator
 
+import pytest
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.store import Store
 from app.store.database.database import Database
 from app.web.app import Application, setup_app
 from app.web.config import Config
 
-from .fixtures import *
+from .fixtures import *  # noqa: F403
 
 
 @pytest.fixture(scope="session")
@@ -21,6 +23,7 @@ def event_loop():
         loop = asyncio.new_event_loop()
     yield loop
     loop.close()
+
 
 @pytest.fixture(scope="session")
 async def app() -> Application:

@@ -61,3 +61,4 @@ class FSM:
             state = self.transitions[current_state]["next_state"]
             await self.app.store.user.set_state(chat_id, state)
             return state
+        return None

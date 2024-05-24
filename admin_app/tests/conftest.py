@@ -1,18 +1,25 @@
 import logging
 import os
 from asyncio import AbstractEventLoop
-from typing import Iterator
+from collections.abc import Iterator
 
+import pytest
 from aiohttp.pytest_plugin import AiohttpClient
-from aiohttp.test_utils import loop_context, TestClient
+from aiohttp.test_utils import TestClient, loop_context
 from sqlalchemy import inspect, text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncConnection
+from sqlalchemy.ext.asyncio import (
+    AsyncConnection,
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+)
 
 from admin_app.store.database.database import Database
 from admin_app.web.admin_app import Application, setup_app
 from admin_app.web.config import Config
+from app.store import Store
 
-from .fixtures import *
+from .fixtures import *  # noqa: F403
 
 
 @pytest.fixture(scope="session")
@@ -22,7 +29,7 @@ def event_loop() -> Iterator[None]:
 
 
 @pytest.fixture(scope="session")
-async def app() -> Application:
+def app() -> Application:
     app = setup_app(
         config_path=os.path.join(
             os.path.abspath(os.path.dirname(__file__)), "config.yaml"

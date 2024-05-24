@@ -1,33 +1,23 @@
 import pytest
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from admin_app.store import Store
-from admin_app.tg_bot.dataclasses import Update, MessageObject, Chat
+from admin_app.tg_bot.dataclasses import Chat, MessageObject, Update
 from admin_app.users.models import SessionModel, UserModel, UserSession
 
 
 @pytest.fixture
-async def update():
-    return Update(
-        message=MessageObject(
-            chat=Chat(
-                id_=42424242
-            )
-        )
-    )
+def update():
+    return Update(message=MessageObject(chat=Chat(id_=42424242)))
 
 
 @pytest.fixture
-async def user_request():
-    return {
-        "id_": 66666666,
-        "first_name": "FirstName",
-        "username": "username"
-    }
+def user_request():
+    return {"id_": 66666666, "first_name": "FirstName", "username": "username"}
 
 
 @pytest.fixture
-async def user_session_request_1():
+def user_session_request_1():
     return {
         "user_id": 66666666,
         "first_name": "FirstName",
@@ -39,14 +29,14 @@ async def user_session_request_1():
 
 
 @pytest.fixture
-async def user_session_request(user_session_request_1, game_session_1):
-    user_session = user_session_request_1 | {"session_id": game_session_1.id_}
-    print(user_session)
-    return user_session
+def user_session_request(user_session_request_1, game_session_1):
+    return user_session_request_1 | {"session_id": game_session_1.id_}
 
 
 @pytest.fixture
-async def game_session_1(db_sessionmaker: async_sessionmaker[AsyncSession], update: Update):
+async def game_session_1(
+    db_sessionmaker: async_sessionmaker[AsyncSession], update: Update
+):
     game_session = SessionModel(
         chat_id=update.message.chat.id_,
     )
@@ -57,16 +47,9 @@ async def game_session_1(db_sessionmaker: async_sessionmaker[AsyncSession], upda
 
 
 @pytest.fixture
-async def user_session_request(game_session_1: SessionModel):
-    return {
-        "user_id": 66666666,
-        "session_id": game_session_1.id_,
-        "file_id": "file_id"
-    }
-
-
-@pytest.fixture
-async def user_1(db_sessionmaker: async_sessionmaker[AsyncSession], user_request: dict):
+async def user_1(
+    db_sessionmaker: async_sessionmaker[AsyncSession], user_request: dict
+):
     user = UserModel(**user_request)
 
     async with db_sessionmaker() as session:
@@ -75,13 +58,15 @@ async def user_1(db_sessionmaker: async_sessionmaker[AsyncSession], user_request
     return user
 
 
-
 @pytest.fixture
-async def user_session_1(db_sessionmaker: async_sessionmaker[AsyncSession], user_1: UserModel, game_session_1: SessionModel):
+async def user_session_1(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+    user_1: UserModel,
+    game_session_1: SessionModel,
+):
     user_session = UserSession(
         session_id=game_session_1.id_,
         user_id=user_1.id_,
-
     )
     async with db_sessionmaker() as session:
         session.add(user_session)
@@ -90,5 +75,7 @@ async def user_session_1(db_sessionmaker: async_sessionmaker[AsyncSession], user
 
 
 @pytest.fixture
-async def game_session_with_user(store: Store, game_session_1: SessionModel, user_1: UserModel):
+async def game_session_with_user(
+    store: Store, game_session_1: SessionModel, user_1: UserModel
+):
     return await store.user.add_user_to_session_manual(user_1, game_session_1)

@@ -9,7 +9,7 @@ def session_to_dict(game_session: SessionModel) -> dict:
         "round_number": game_session.round_number,
         "state": game_session.state,
         "message_id": game_session.message_id,
-        "polls_time": game_session.polls_time
+        "polls_time": game_session.polls_time,
     }
 
 
@@ -17,7 +17,7 @@ def user_to_dict(user: UserModel) -> dict:
     return {
         "id_": user.id_,
         "first_name": user.first_name,
-        "username": user.username
+        "username": user.username,
     }
 
 
@@ -28,5 +28,5 @@ def user_session_to_dict(user_session: UserSession):
         "session_id": user_session.session_id,
         "points": user_session.points,
         "in_game": user_session.in_game,
-        "file_id": user_session.file_id
+        "file_id": user_session.file_id,
     }

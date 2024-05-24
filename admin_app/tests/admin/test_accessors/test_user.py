@@ -1,10 +1,14 @@
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from admin_app.store import Store
+from admin_app.tests.utils import (
+    session_to_dict,
+    user_session_to_dict,
+    user_to_dict,
+)
 from admin_app.tg_bot.dataclasses import Update
 from admin_app.users.models import SessionModel, UserModel, UserSession
-from admin_app.tests.utils import session_to_dict, user_to_dict, user_session_to_dict
 
 
 class TestUserAccessor:
@@ -24,7 +28,7 @@ class TestUserAccessor:
             "round_number": 1,
             "state": "start",
             "message_id": None,
-            "polls_time": 60
+            "polls_time": 15,
         }
 
     async def test_create_new_user(self, store: Store, user_request: dict):
@@ -33,8 +37,12 @@ class TestUserAccessor:
         assert isinstance(user, UserModel)
         assert user_to_dict(user) == user_request
 
-    async def test_get_game_session_by_id(self, store:Store, game_session_1: SessionModel):
-        game_session = await store.user.get_game_session_by_id(game_session_1.id_)
+    async def test_get_game_session_by_id(
+        self, store: Store, game_session_1: SessionModel
+    ):
+        game_session = await store.user.get_game_session_by_id(
+            game_session_1.id_
+        )
 
         assert session_to_dict(game_session) == {
             "id_": game_session.id_,
@@ -43,16 +51,29 @@ class TestUserAccessor:
             "round_number": game_session.round_number,
             "state": game_session.state,
             "message_id": game_session.message_id,
-            "polls_time": game_session.polls_time
+            "polls_time": game_session.polls_time,
         }
 
-    async def test_add_user_to_session_manual(self, db_sessionmaker: async_sessionmaker[AsyncSession], store: Store, user_1: UserModel, game_session_1: SessionModel):
-        game_session = await store.user.add_user_to_session_manual(user_1, game_session_1)
+    async def test_add_user_to_session_manual(
+        self,
+        db_sessionmaker: async_sessionmaker[AsyncSession],
+        store: Store,
+        user_1: UserModel,
+        game_session_1: SessionModel,
+    ):
+        game_session = await store.user.add_user_to_session_manual(
+            user_1, game_session_1
+        )
 
         assert game_session.id_ == game_session_1.id_
         assert game_session.users
 
-    async def test_add_user_photo(self, store: Store, user_session_request: dict, game_session_with_user: SessionModel):
+    async def test_add_user_photo(
+        self,
+        store: Store,
+        user_session_request: dict,
+        game_session_with_user: SessionModel,
+    ):
         user_session = await store.user.add_user_photo(**user_session_request)
 
         assert isinstance(user_session, UserSession)
@@ -62,28 +83,49 @@ class TestUserAccessor:
             "session_id": user_session.session_id,
             "points": user_session.points,
             "in_game": user_session.in_game,
-            "file_id": user_session.file_id
+            "file_id": user_session.file_id,
         }
 
-    async def test_delete_user_from_session(self, db_sessionmaker: async_sessionmaker[AsyncSession], store: Store, user_session_1):
-        await store.user.delete_user_from_session(user_session_1.user_id, user_session_1.session_id)
+    async def test_delete_user_from_session(
+        self,
+        db_sessionmaker: async_sessionmaker[AsyncSession],
+        store: Store,
+        user_session_1,
+    ):
+        await store.user.delete_user_from_session(
+            user_session_1.user_id, user_session_1.session_id
+        )
 
         async with db_sessionmaker() as session:
-            user_session = await session.scalar(select(UserSession)
-                                                .where(
-                UserSession.session_id == user_session_1.session_id,
-                UserSession.user_id == user_session_1.user_id))
+            user_session = await session.scalar(
+                select(UserSession).where(
+                    UserSession.session_id == user_session_1.session_id,
+                    UserSession.user_id == user_session_1.user_id,
+                )
+            )
 
         assert user_session is None
 
-    async def test_get_all_users_in_session(self, store: Store, game_session_with_user):
-        users = await store.user.get_all_users_in_session(game_session_with_user.id_)
+    async def test_get_all_users_in_session(
+        self, store: Store, game_session_with_user
+    ):
+        users = await store.user.get_all_users_in_session(
+            game_session_with_user.id_
+        )
 
         assert len(users) == 1
 
-    async def test_get_game_statistics(self, store: Store, game_session_with_user: SessionModel, user_session_request_1: dict, user_session_request: dict):
+    async def test_get_game_statistics(
+        self,
+        store: Store,
+        game_session_with_user: SessionModel,
+        user_session_request_1: dict,
+        user_session_request: dict,
+    ):
         await store.user.add_user_photo(**user_session_request)
-        statistics = await store.user.get_game_statistics(game_session_with_user.id_)
+        statistics = await store.user.get_game_statistics(
+            game_session_with_user.id_
+        )
 
         users = [user_session_request_1]
 
@@ -94,13 +136,7 @@ class TestUserAccessor:
             "in_progress": game_session_with_user.in_progress,
         }
 
-
     async def test_set_seconds(self, store: Store, game_session_1):
         game_session = await store.user.set_seconds(game_session_1.id_, 42)
 
         assert game_session.polls_time == 42
-
-
-
-
-
